@@ -1,0 +1,11 @@
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: dex
+
+- name: chown /var/data/dex to uid 1001 (dex's UID)
+  file:
+    path: /var/data/dex
+    state: directory
+    owner: "1001"

@@ -1,0 +1,50 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: kanboard
+  name: app
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - image: kanboard/kanboard
+          name: app
+          volumeMounts:
+            - name: kanboard-config
+              mountPath: /var/www/app/config.php
+              subPath: config.php
+            - name: kanboard-app
+              mountPath: /var/www/app/data
+              subPath: data
+            - name: kanboard-app
+              mountPath: /var/www/app/plugins
+              subPath: plugins
+      volumes:
+        - name: kanboard-app
+          persistentVolumeClaim:
+            claimName: kanboard-app
+        - name: kanboard-config
+          configMap:
+            name: kanboard-config
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+  namespace: kanboard
+spec:
+  selector:
+    app: app
+  ports:
+  - protocol: TCP
+    port: 80
+  clusterIP: None

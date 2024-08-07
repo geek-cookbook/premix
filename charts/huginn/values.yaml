@@ -1,0 +1,152 @@
+# Name everything!
+names:
+
+  # The name of the deployment
+  deployment: huginn
+
+  # The name of the service
+  service: huginn
+
+  # The name of the secret
+  secret: huginn
+
+  # The name of the Ingress rule
+  ingress: huginn
+
+app:
+  # The number of pods this app should start and maintain
+  replicas: 1
+
+  # Labels are customizable to how you like.
+  labels:
+
+    # App is the only required label
+    app: Huginn
+
+  # Set the resources you want to allocate to each pod
+  resources: {}
+
+  image:
+
+    # The image to use for this deployment, changing it is not recommended.
+    image: huginn/huginn
+
+    # The Image Pull Policy (The same one if you were writing it yourself!)
+    pullPolicy: IfNotPresent
+
+  service:
+
+    # The port the service exposes on the deployment
+    internalPort: 3000
+
+    # The name of the port
+    name: http-huginn
+
+  probes:
+    liveness:
+
+      # An HTTP path on the container that will return something if it is all live and healthy
+      httpPath: /
+
+    readiness:
+
+      # An HTTP path on the container that will return something when the container is classified as "Ready"
+      httpPath: /
+
+ingress:
+
+  # Enabled Ingress for this deployment
+  enabled: true
+
+  # Either `traefik` or `kube`, Defines the type of ingress rule to use
+  type: kube
+
+  # The host you can access this service at
+  host: huginn.local
+
+  # A path you can access it at, It is not recommended to change it off `/`
+  path: /
+
+  # TLS Settings for Ingress
+  tls: {}
+
+  # Annotations for the ingress
+  annotations: {}
+
+smtp:
+
+  # Enabled SMTP
+  enable: true
+
+  # Mail domain to send from
+  domain: huginn.local
+
+  # Email Account Username
+  username: huginn@huginn.local
+
+  # Email Account Password
+  password: hugginwithhuginn
+
+  # Email Server Address
+  server: mail.local
+
+  # Email Server Port
+  port: 465
+
+  # Email Server authenticaiton type
+  authentication: plain
+
+  # Email Server use STARTTLS
+  starttls: true
+
+# Huginn Invitation Code
+invitation_code: HUGMEHUGINN
+
+db:
+
+  # Deploy a database with this chart, or not?
+  deploy: true
+
+  # Database Address - Can be external or point to an existing database
+  address:
+
+  # Database Port
+  port: 5432
+
+  # Database Username
+  username: huginn
+
+  # Database Password
+  password: huggingwithsql
+
+  # Seed the database (fill with dummy data)
+  seed: false
+
+twitter:
+
+  # Enable Twitter Integration
+  enabled: true
+
+  oauth:
+
+    # Twitter OAuth2 Key
+    key: tweettweet
+
+    # Twitter OAuth2 Secret
+    secret: twoottweet
+
+postgresql:
+
+  # The name for the database
+  fullnameOverride: "huginnsql"
+
+  # Set the username here to the same one as in `db.username`
+  postgresqlUsername: huginn
+
+  # Set the password here to the same one as in `db.password`
+  postgresqlPassword: huggingwithsql
+
+  service:
+
+    # Make the port the same as `db.port`
+    port: 5432

@@ -1,0 +1,5 @@
+# These are the defaults applied to all imported role runs of the "helm-chart" role.
+# Service-specific overrides should be saved to the same directory, named <helm chart name>.yaml
+
+kube_score_args: "--ignore-test pod-networkpolicy"
+kube_score_extra_args: ""

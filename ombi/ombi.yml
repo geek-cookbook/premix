@@ -1,0 +1,36 @@
+version: "3.2"
+
+services:
+  ombi:
+    image: lscr.io/linuxserver/ombi:latest
+    env_file: /var/data/config/ombi/ombi.env
+    volumes:
+      - /var/data/ombi:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:ombi.example.com
+        - traefik.port=3579
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.ombi.rule=Host(`ombi.example.com`)"
+        - "traefik.http.routers.ombi.entrypoints=https"
+        - "traefik.http.services.ombi.loadbalancer.server.port=3579"
+        - "traefik.http.routers.ombi.middlewares=forward-auth"
+    networks:
+      - traefik_public
+      - autopiratev2_public
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

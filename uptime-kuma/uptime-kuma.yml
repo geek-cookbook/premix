@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  app:
+    image: louislam/uptime-kuma:latest
+    volumes:
+      - /var/data/uptime-kuma:/app/data
+    deploy:
+      replicas: 1      
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:uptime-kuma.example.com
+        - traefik.port=3001   
+        # uncomment if you want to protect uptime-kuma with traefik-forward-auth using traefikv1 
+        # - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        # - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        # - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.uptime-kuma.rule=Host(`uptime-kuma.example`)"
+        - "traefik.http.routers.uptime-kuma.entrypoints=https"
+        - "traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+        - "traefik.http.routers.uptime-kuma.middlewares=forward-auth" # this line enforces traefik-forward-auth  
+
+    networks:
+      - traefik_public
+      
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.60.0/24

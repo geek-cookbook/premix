@@ -1,0 +1,25 @@
+{{- if and .Values.ingress.enabled ( eq .Values.ingress.type "traefik" ) -}}
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ .Values.names.ingress }}
+  labels:
+{{ include "autopirate.labels" . | indent 4 }}
+  annotations:
+    {{- range $key, $value := .Values.ingress.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  routes:
+  {{- range $key,$app := .Values.apps }}
+  - match: Host(`{{ $app.ingress.host }}`) && PathPrefix(`{{ $app.ingress.path }}`)
+    kind: Rule
+    services:
+    - name: {{ printf "%s-%s-%s" $.Release.Name $app.name $.Chart.Name | trunc 63 | trimSuffix "-" }}
+      port: {{ $app.port }}
+  {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}

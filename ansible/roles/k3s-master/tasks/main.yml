@@ -1,0 +1,49 @@
+---
+# tasks file for k3s-master
+
+- name: install k3s on master[0]
+  shell: >
+    curl -sfL https://get.k3s.io | K3S_TOKEN={{ k3s_server_token }} INSTALL_K3S_EXEC="--disable traefik --cluster-init" sh -
+  args:
+    creates: /usr/local/bin/k3s
+  register: master_install_result
+  delegate_to: "{{ groups['k3s_masters'][0] }}"
+  run_once: true
+
+- set_fact:
+    master_ip: "{{ hostvars[groups['k3s_masters'][0]].ansible_default_ipv4.address }}"
+
+- name: install k3s on master[1-n]
+  shell: >
+    curl -sfL https://get.k3s.io | K3S_TOKEN={{ k3s_server_token }} INSTALL_K3S_EXEC="--disable traefik server --server https://{{ master_ip }}:6443" sh -
+  args:
+    creates: /usr/local/bin/k3s
+#  when: inventory_hostname != groups[k3s_masters[0]]  
+
+- name: setup kubectl auto-completion
+  lineinfile:
+    path: /root/.bash_profile
+    regexp: 'source <\(kubectl completion bash\)'
+    line: source <(kubectl completion bash)
+    create: yes
+
+# - name: fetch k3s.yaml
+#   become: yes
+#   fetch:
+#     src: /etc/rancher/k3s/k3s.yaml
+#     dest: "{{ kubeconfig }}"
+#     flat: yes
+
+# - name: update master ip in k3s.yaml
+#   replace:
+#     path: "{{ kubeconfig }}"
+#     regexp: '127.0.0.1'
+#     replace: "{{ hostvars[groups['k3s_masters'][0]].ansible_default_ipv4.address }}"
+#   delegate_to: localhost
+
+# - name: update cluster name k3s.yaml
+#   replace:
+#     path: "{{ kubeconfig }}"
+#     regexp: 'default'
+#     replace: "{{ cluster_name }}"
+#   delegate_to: localhost

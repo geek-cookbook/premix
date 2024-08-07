@@ -1,0 +1,65 @@
+{{ $app := .Values.apps.rtorrent }} {{ $fullname := printf "%s-%s-%s" .Release.Name $app.name .Chart.Name | trunc 63 | trimSuffix "-" }}
+{{- if $app.enable  -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: {{ $fullname }}
+  labels:
+  {{- include "autopirate.labels" . | indent 4 }}  
+  {{- range $key, $value := $app.labels }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ $fullname }}
+  replicas: {{ default 1 $app.replicas | int }}
+  template:
+    metadata:
+      labels:
+        app: {{ $fullname }}
+    spec:
+      containers:
+      - name: {{ $app.name }}
+        image: "{{ $app.image }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: {{ $app.port | int }}
+        
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ $app.port | int }}
+          initialDelaySeconds: 30
+
+        startupProbe:
+          httpGet:
+            path: /
+            port: {{ $app.port | int }}
+          failureThreshold: 30
+          periodSeconds: 10
+          
+        readinessProbe:
+          httpGet:
+            path: /
+            port: {{ $app.port | int }}
+        resources:
+{{ toYaml $app.resources | indent 10 }}
+        volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+            - name: media
+              mountPath: /media
+      volumes:
+          - name: media
+            persistentVolumeClaim:
+              claimName: {{ .Values.claims.media.name }}
+          - name: downloads
+            persistentVolumeClaim:
+              claimName: {{ .Values.claims.download.name }}
+          - name: config
+            persistentVolumeClaim:
+              claimName: {{ $fullname }}
+{{- end -}}

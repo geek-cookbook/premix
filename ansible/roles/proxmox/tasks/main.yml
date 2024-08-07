@@ -1,0 +1,125 @@
+# This indented section should only run on proxmox
+- name: Run proxmox-specific tasks
+  when: 
+  - "inventory_hostname in groups['proxmox_servers']" 
+  block:
+
+# Only run these tasks if the controller VM template doesn't exist yet
+  # Sourced from https://pve.proxmox.com/wiki/Cloud-Init_Support
+
+  # Only run this on proxmox hosts
+  - name: Does our VM template exist already?
+    shell: qm list | grep -q template-geek-cookbook-{{ inventory_hostname }}
+    register: _swarm_template_exists
+    failed_when: _swarm_template_exists.rc not in [0,1]
+    when: "inventory_hostname in groups['proxmox_servers']" 
+
+  # Create template for controller
+  - name: Create proxmox swarm template template if it doesn't already exist
+    when: 
+    - _swarm_template_exists.rc == 1
+    - "inventory_hostname in groups['proxmox_servers']" 
+    block:
+
+    - name: "[create template] Download latest ubuntu cloud-init image"
+      get_url:
+        url: https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
+        dest: /tmp/
+
+    - name: "[create template] Create new VM (with explicit VLAN)"
+      command: qm create {{ template_vm_id | quote}} --name template-geek-cookbook-{{ inventory_hostname }} --memory {{ proxmox_vm_ram }} --net0 virtio,bridge={{ proxmox_vm_network_bridge }},tag={{ proxmox_vm_vlan_tag }}
+      when: proxmox_vm_vlan_tag is defined
+
+    - name: "[create template] Create new VM (without explicit VLAN)"
+      command: qm create {{ template_vm_id | quote}} --name template-geek-cookbook-{{ inventory_hostname }} --memory {{ proxmox_vm_ram }} --net0 virtio,bridge={{ proxmox_vm_network_bridge }}
+      when: proxmox_vm_vlan_tag is not defined
+
+    - name: "[create template] Import cloud-init image into disk"
+      command: qm importdisk {{ template_vm_id | quote}} /tmp/focal-server-cloudimg-amd64.img {{ proxmox_storage }}
+
+    - name: "[create template] Attach disk to template VM"
+      command: qm set {{ template_vm_id | quote}} --scsihw virtio-scsi-pci --scsi0 {{ proxmox_storage }}:vm-{{ template_vm_id | quote}}-disk-0   
+
+    - name: "[create template] Create CDROM image to pass cloud-init params to template VM"
+      command: qm set {{ template_vm_id | quote}} --ide2 {{ proxmox_storage }}:cloudinit    
+
+    - name: "[create template] Set template VM to boot from hard disk only (speeds up boot)"
+      command: qm set {{ template_vm_id | quote}} --boot c --bootdisk scsi0
+
+    - name: "[create template] Add a serial console to the template for good measure"
+      command: qm set {{ template_vm_id | quote}} --serial0 socket --vga serial0
+
+    - name: "[create template] Turn VM into template"
+      command: qm template {{ template_vm_id | quote}}
+
+
+
+# Run these locally
+- name: Prepare terraform plan locally
+  delegate_to: localhost
+  block:
+      
+  - name: Create temporary directory for terraform plan
+    file:
+      name: "{{ terraform_dir }}"
+      state: directory
+
+  - name: "Are there existing .tf files in {{ terraform_dir }}?"
+    find:
+      paths: "{{ terraform_dir }}"
+      patterns: "*.tf"
+    register: files_to_delete
+
+  - name: "Delete any .tf files found in {{ terraform_dir }}"
+    file:
+      path: "{{ item.path }}"
+      state: absent
+    with_items: "{{ files_to_delete.files }}"
+
+  - name: Create terraform plan for vms
+    template:
+      src: swarm_node.tf.j2
+      dest: "{{ terraform_dir }}/{{ inventory_hostname_short }}.tf"
+    when: "inventory_hostname in groups['proxmox_vms']" 
+    with_items: "{{ groups['proxmox_vms'] }}"
+
+  # not part of a normal install, this should be handled by a ci-specific playbook - @funkypenguin
+  # - name: Create terraform plan for ci runners
+  #   template:
+  #     src: swarm_node.tf.j2
+  #     dest: "{{ terraform_dir }}/{{ inventory_hostname_short }}.tf"
+  #   when: 
+  #   - "inventory_hostname in groups['proxmox_vms_ci']" 
+  #   with_items: "{{ groups['proxmox_vms_ci'] }}"
+
+  - name: Actually create VMs with terraform (can only run once)
+    when: "inventory_hostname in groups['proxmox_servers']"
+    run_once: true 
+    block:
+
+    - name: Create terraform plan for terraform provider
+      template:
+        src: main.tf.j2
+        dest: "{{ terraform_dir }}/main.tf"
+
+    - name: Run terraform init
+      command: terraform init -upgrade
+      args:
+        chdir: "{{ terraform_dir }}"
+
+    - name: Run terraform plan
+      command: terraform plan
+      args:
+        chdir: "{{ terraform_dir }}"
+
+    - name: Run terraform apply
+      command: terraform apply -auto-approve -parallelism=1
+      args:
+        chdir: "{{ terraform_dir }}"
+                  
+- name: Don't exit this play until the machines are reachable (they might still be booting up)
+  wait_for_connection: 
+    delay: 60
+    timeout: 300
+  vars:
+    ansible_pipelining: no

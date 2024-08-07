@@ -1,0 +1,85 @@
+version: "3.2"
+
+services:
+  broker:
+    image: rabbitmq
+    env_file: /var/data/config/mayan/mayan.env
+    volumes:
+      - /var/data/runtime/mayan/rabbitmq:/var/lib/rabbitmq
+    networks:
+      - internal
+ 
+  results:
+    image: redis:latest
+    volumes:
+      - /var/data/runtime/mayan/results:/data
+    networks:
+      - internal
+
+  db:
+    image: postgres:10.5
+    env_file: /var/data/config/mayan/mayan.env
+    volumes:
+      - /var/data/runtime/mayan/db:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  db-backup:
+    image: postgres:10.5
+    env_file: /var/data/config/mayan/mayan-backup.env
+    volumes:
+      - /var/data/mayan/database-dump:/dump
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        pg_dump -Fc > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.psql
+        ls -tr /dump/dump_*.psql | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal      
+      
+  app:
+    image: mayanedms/mayanedms:latest
+    env_file: /var/data/config/mayan/mayan.env
+    volumes:
+      - /var/data/mayan/app:/var/lib/mayan
+      - /var/data/mayan/watch_folder:/watch_folder
+      - /var/data/mayan/stage_folder:/stage_folder
+    networks:
+      - internal
+        
+  proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/mayan/mayan.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:mayan.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /etc/localtime:/etc/localtime:ro  
+      - /var/data/config/mayan/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=true
+      -upstream=http://app:8000
+      -redirect-url=https://mayan.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt        
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.42.0/24
+        

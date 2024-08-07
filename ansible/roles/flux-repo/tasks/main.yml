@@ -1,0 +1,129 @@
+# This playbook should generate the flux repo structure we rely on
+- delegate_to: localhost
+  run_once: true
+  block:
+
+  - name: "{{ recipe }} --> Set values from config to make this cleaner"
+    set_fact:
+      helm_chart_name: "{{ combined_config[config].helm_chart_name }}"
+      helm_chart_repo: "{{ combined_config[config].helm_chart_repo }}"
+      helm_chart_repo_url: "{{ combined_config[config].helm_chart_repo_url }}"
+      helm_chart_version: "{{ combined_config[config].helm_chart_version }}"
+      helm_chart_namespace: "{{ combined_config[config].helm_chart_namespace }}"
+
+  - name: "{{ recipe }} --> Check if kustomize is available"
+    block:
+      - name: try using kustomize
+        command: kustomize --help
+        check_mode: true
+
+      - name: Kustomize is available
+        debug:
+          msg: Kustomize is installed
+
+    rescue:
+      - name: No kustomize
+        debug:
+          msg: Kustomize is not installed
+
+  - name: "{{ recipe }} --> Check if kubectl is available"
+    block:
+      - name: try using kubectl
+        command: kubectl --help
+        check_mode: true
+
+      - name: kubectl is available
+        debug:
+          msg: kubectl is installed
+
+    rescue:
+      - name: No kubectl
+        debug:
+          msg: kubectl is not installed
+
+  - name: "{{ recipe }} --> Check if helm is available"
+    block:
+      - name: try using helm
+        command: helm version
+        check_mode: true
+
+      - name: helm is available
+        debug:
+          msg: helm is installed
+
+    rescue:
+      - name: No helm
+        debug:
+          msg: helm is not installed
+
+  - name: "Confirm that 'flux-repo' exists"
+    file:
+      path: "{{ flux_repo_path }}"
+      state: directory
+
+  - name: "Ensure that the necessary subdirectories exist within flux-repo"
+    file:
+      path: "{{ flux_repo_path }}/bootstrap/{{ item }}"
+      state: directory
+    with_items:
+    - namespaces
+    - kustomizations
+    - helmrepositories
+    - gitrepositories
+
+  # then assume that we've been passed vars like recipe.name, helm chart location, and go from that
+  - name: "{{ recipe }} --> Create namespace"
+    template:
+      src: flux-namespace.yaml.j2
+      dest: "{{ flux_repo_path }}/bootstrap/namespaces/namespace-{{ helm_chart_namespace }}.yaml"
+
+  - name: "{{ recipe }} --> Create kustomization"
+    template:
+      src: flux-kustomization.yaml.j2
+      dest: "{{ flux_repo_path }}/bootstrap/kustomizations/kustomization-{{ recipe }}.yaml"
+
+  - name: "{{ recipe }} --> Create helmrepository"
+    template:
+      src: flux-helmrepository.yaml.j2
+      dest: "{{ flux_repo_path }}/bootstrap/helmrepositories/helmrepository-{{ helm_chart_repo }}.yaml"
+
+  - name: "{{ recipe }} --> Create /{{ recipe }}"
+    file:
+      path: "{{ flux_repo_path }}/{{ recipe }}"
+      state: directory
+
+  - name: "{{ recipe }} --> Add helm repo locally"
+    shell: helm repo add  {{ helm_chart_repo }}  {{ helm_chart_repo_url }} --force-update
+
+  - name: "{{ recipe }} --> Retrieve chart values for {{ recipe }}"
+    shell: helm show values {{ helm_chart_repo }}/{{ helm_chart_name }} > {{ flux_repo_path }}/{{ recipe }}/default-values-{{ helm_chart_name }}.yaml
+
+  - name: "{{ recipe }} --> Does a configmap already exist?"
+    stat:
+      path: "{{ flux_repo_path }}/{{ recipe }}/configmap-{{ recipe }}.yaml"
+    register: configmap_exists
+
+  - name: "{{ recipe }} --> Create a configmap from default values if it doesn't already exist (or if we've chosen to overwrite it)"
+    shell: |
+      kubectl create configmap -n {{ helm_chart_namespace }} {{ helm_chart_name }}-helm-chart-value-overrides \
+      --from-file=values.yaml={{ flux_repo_path }}/{{ recipe }}/default-values-{{ helm_chart_name }}.yaml \
+      --dry-run=client \
+      -o yaml \
+      > {{ flux_repo_path }}/{{ recipe }}/configmap-{{ recipe }}.yaml
+    when: configmap_exists.stat.exists == false or overwrite_configmap is defined
+
+  - name: "{{ recipe }} --> Create HelmRelease"
+    template:
+      src: flux-helmrelease.yaml.j2
+      dest: "{{ flux_repo_path }}/{{ recipe }}/helmrelease-{{ recipe }}.yaml"
+
+  - name: "{{ recipe }} --> Create README"
+    template:
+      src: README.md.j2
+      dest: "{{ flux_repo_path }}/{{ recipe }}/README.md"
+
+  - name: "{{ recipe }} --> Create kustomize.yaml to ignore non-kubernetes manifests"
+    shell: |
+      cd {{ flux_repo_path }}/{{ recipe }}
+      rm kustomization.yaml
+      kustomize create --autodetect

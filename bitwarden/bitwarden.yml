@@ -1,0 +1,46 @@
+version: "3"
+services:
+  bitwarden:
+    image: vaultwarden/server
+    env_file: /var/data/config/bitwarden/bitwarden.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/data/bitwarden:/data/:rw
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.hub.frontend.rule=Host:bitwarden.example.com;Path:/notifications/hub
+        - traefik.port=3012   
+        - traefik.web.port=80 
+
+        # traefikv2
+        - traefik.http.middlewares.redirect-https.redirectScheme.scheme=https
+        - traefik.http.middlewares.redirect-https.redirectScheme.permanent=true
+        - traefik.http.routers.bitwarden-ui-https.rule=Host(`bitwarden.example.com`)
+        - traefik.http.routers.bitwarden-ui-https.entrypoints=https
+        - traefik.http.routers.bitwarden-ui-https.service=bitwarden-ui
+        - traefik.http.routers.bitwarden-ui-http.rule=Host(`bitwarden.example.com`)
+        - traefik.http.routers.bitwarden-ui-http.entrypoints=http
+        - traefik.http.routers.bitwarden-ui-http.middlewares=redirect-https
+        - traefik.http.routers.bitwarden-ui-http.service=bitwarden-ui
+        - traefik.http.services.bitwarden-ui.loadbalancer.server.port=80
+        - traefik.http.routers.bitwarden-websocket-https.rule=Host(`bitwarden.example.com`) && Path(`/notifications/hub`)
+        - traefik.http.routers.bitwarden-websocket-https.entrypoints=https
+        - traefik.http.routers.bitwarden-websocket-https.service=bitwarden-websocket
+        - traefik.http.routers.bitwarden-websocket-http.rule=Host(`bitwarden.example.com`) && Path(`/notifications/hub`)
+        - traefik.http.routers.bitwarden-websocket-http.entrypoints=http
+        - traefik.http.routers.bitwarden-websocket-http.middlewares=redirect-https
+        - traefik.http.routers.bitwarden-websocket-http.service=bitwarden-websocket
+        - traefik.http.services.bitwarden-websocket.loadbalancer.server.port=3012
+
+    networks:
+        - traefik_public
+
+networks:
+  traefik_public:
+    external: true
+

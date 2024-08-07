@@ -1,0 +1,80 @@
+###############################################################
+#                   Authelia configuration                    #
+###############################################################
+
+server:
+  host: 0.0.0.0
+  port: 9091
+
+log:
+  level: warn
+
+# This secret can also be set using the env variables AUTHELIA_JWT_SECRET_FILE
+# I used this site to generate the secret: https://www.grc.com/passwords.htm
+jwt_secret: SECRET_GOES_HERE
+
+# https://docs.authelia.com/configuration/miscellaneous.html#default-redirection-url
+default_redirection_url: https://authelia.example.com
+
+totp:
+  issuer: authelia.example.com
+  period: 30
+  skew: 1
+
+authentication_backend:
+  file:
+    path: /config/users_database.yml
+    # customize passwords based on https://docs.authelia.com/configuration/authentication/file.html
+    password:
+      algorithm: argon2id
+      iterations: 1
+      salt_length: 16
+      parallelism: 8
+      memory: 1024 # blocks this much of the RAM. Tune this.
+
+# https://docs.authelia.com/configuration/access-control.html
+access_control:
+  default_policy: one_factor
+  rules:
+    - domain: "bitwarden.example.com"
+      policy: two_factor
+
+    - domain: "whoami-authelia-2fa.example.com"
+      policy: two_factor      
+
+    - domain: "*.example.com"
+      policy: one_factor
+
+
+session:
+  name: authelia_session
+  # This secret can also be set using the env variables AUTHELIA_SESSION_SECRET_FILE
+  # Used a different secret, but the same site as jwt_secret above.
+  secret: SECRET_GOES_HERE
+  expiration: 3600 # 1 hour
+  inactivity: 300 # 5 minutes
+  domain: example.com # Should match whatever your root protected domain is
+
+regulation:
+  max_retries: 3
+  find_time: 120
+  ban_time: 300
+
+storage:
+  encryption_key: SECRET_GOES_HERE_20_CHARACTERS_OR_LONGER
+  local:
+    path: /config/db.sqlite3
+
+
+notifier:
+  # smtp:
+  #   username: SMTP_USERNAME
+  #   # This secret can also be set using the env variables AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE
+  #   # password: # use docker secret file instead AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE
+  #   host: SMTP_HOST
+  #   port: 587 #465
+  #   sender: batman@example.com # customize for your setup
+
+# For testing purpose, notifications can be sent in a file. Be sure map the volume in docker-compose.
+ filesystem:
+   filename: /config/notification.txt

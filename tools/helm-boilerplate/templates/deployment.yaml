@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: {{ .Values.names.deployment }}
+  labels:
+{{ include "<CHARTNAME>.labels" . | indent 4 }}    
+spec:
+  replicas: {{ .Values.app.replicas | int }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.labels.app }}
+  template:
+    metadata:
+      labels:
+{{ include "<CHARTNAME>.labels" . | indent 8 }}        
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.app.image.image }}"
+        imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.app.service.internalPort | int }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.app.probes.liveness.httpPath }}
+            port: {{ .Values.app.service.internalPort | int }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.app.probes.readiness.httpPath }}
+            port: {{ .Values.app.service.internalPort | int }}
+        resources:
+{{ toYaml .Values.app.resources | indent 10 }}

@@ -1,0 +1,37 @@
+---
+# tasks file for k3s_workers
+
+- name: get node token
+  command: cat /var/lib/rancher/k3s/server/node-token
+  register: node_token_result
+  become: yes
+  delegate_to: "{{ groups['k3s_masters'][0] }}"
+
+- set_fact:
+    node_token: "{{ node_token_result.stdout }}"
+    master_ip: "{{ hostvars[groups['k3s_masters'][0]].ansible_default_ipv4.address }}"
+
+- name: install k3s on workers
+  shell: >
+    curl -sfL https://get.k3s.io | 
+    K3S_URL=https://{{ master_ip }}:6443 
+    K3S_TOKEN={{ node_token }}
+    sh -
+  args:
+    creates: /usr/local/bin/k3s
+  register: workers_install_result
+  become: yes
+  when: "inventory_hostname in groups['k3s_workers']"  
+
+- name: results of installation
+  debug: var=workers_install_result.stdout_lines
+  when: 
+    - workers_install_result is changed
+    - "inventory_hostname in groups['k3s_workers']"  
+
+- name: setup kubectl auto-completion
+  lineinfile:
+    path: /root/.bash_profile
+    regexp: 'source <\(kubectl completion bash\)'
+    line: source <(kubectl completion bash)
+    create: yes

@@ -1,0 +1,25 @@
+- name: add ip_vs to /etc/modules
+  lineinfile: 
+    dest: /etc/modules
+    line: "ip_vs"
+    state: present
+
+- name: insert ip_vs into running kernel
+  modprobe:
+    name: ip_vs 
+    state: present
+
+- name: create keepalived containers
+  docker_container:
+    name: "keepalived"
+    image: "osixia/keepalived:{{ packages.keepalived.version }}"
+    capabilities: "NET_ADMIN"
+    network_mode: "host"
+    state: started
+    restart: yes
+    restart_policy: unless-stopped
+    env: 
+      KEEPALIVED_INTERFACE: "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+      KEEPALIVED_UNICAST_PEERS: "#PYTHON2BASH:[ '{{ \"', '\".join(keepalived_unicast_peers) }}' ]"
+      KEEPALIVED_VIRTUAL_IPS: "{{ keepalived_virtual_ips }} "
+      KEEPALIVED_PRIORITY: "{{ keepalived_priority | quote }}"

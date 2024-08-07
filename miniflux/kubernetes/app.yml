@@ -1,0 +1,59 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: miniflux
+  name: app
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - image: miniflux/miniflux
+          name: app
+          resources:
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          env:
+          # This is necessary for the miniflux to update the db schema, even on an empty DB
+          - name: CREATE_ADMIN
+            value: "1"
+          - name: RUN_MIGRATIONS
+            value: "1"
+          - name: ADMIN_USERNAME
+            value: "admin"
+          - name: ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: miniflux-credentials
+                key: admin-password.secret
+          - name: DATABASE_URL
+            valueFrom:
+              secretKeyRef:
+                name: miniflux-credentials
+                key: database-url.secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+  namespace: miniflux
+spec:
+  selector:
+    app: app
+  ports:
+  - protocol: TCP
+    port: 8080
+  clusterIP: None

@@ -1,0 +1,7 @@
+# This file simplfies keeping forks up-to-date, using https://github.com/apps/pull
+
+version: "1"
+rules:
+  - base: master
+    upstream: funkypenguin:master
+    mergeMethod: rebase

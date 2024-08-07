@@ -1,0 +1,41 @@
+version: "3"
+
+services:
+  realms:
+    image: realms/realms-wiki:latest
+    env_file: /var/data/config/realms/realms.env
+    volumes:
+      - /var/data/realms:/home/wiki/data
+    networks:
+      - internal
+
+  realms_proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file : /var/data/config/realms/realms.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:realms.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/realms/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://realms:5000
+      -redirect-url=https://realms.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -email-domain=funkypenguin.co.nz
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+        
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.35.0/24

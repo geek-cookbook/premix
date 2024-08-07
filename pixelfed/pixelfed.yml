@@ -1,0 +1,78 @@
+version: '3.5'
+services:
+  db:
+    image: mariadb
+    restart: unless-stopped # makes running maintenance jobs using docker-compose more reliable
+    env_file: /var/data/config/pixelfed/pixelfed.env
+    networks:
+      - internal
+    volumes:
+      - /var/data/runtime/pixelfed/mariadb:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=yeschangemeforproduction
+
+  redis:
+    image: zknt/redis
+    restart: unless-stopped # makes running maintenance jobs using docker-compose more reliable
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+    volumes:
+      - /var/data/runtime/pixelfed/redis:/data
+
+  worker:
+    image: zknt/pixelfed
+    restart: unless-stopped # makes running maintenance jobs using docker-compose more reliable
+    env_file: /var/data/config/pixelfed/pixelfed.env
+    entrypoint: /worker-entrypoint.sh
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'php artisan horizon:status | grep running']
+    volumes:
+      - /var/data/pixelfed:/var/www/storage
+      - /var/data/config/pixelfed/pixelfed.env:/var/www/.env
+
+  app:
+    image: zknt/pixelfed
+    restart: unless-stopped # makes running maintenance jobs using docker-compose more reliable
+    env_file: /var/data/config/pixelfed/pixelfed.env
+    networks:
+      - internal
+      - traefik_public
+    volumes:
+      - /var/data/pixelfed:/var/www/storage
+      - /var/data/config/pixelfed/pixelfed.env:/var/www/.env
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv2
+        - "traefik.http.routers.pixelfed.rule=Host(`pixelfed.example.com`)"
+        - "traefik.http.routers.pixelfed.entrypoints=https"
+        - "traefik.http.services.pixelfed.loadbalancer.server.port=80"
+
+  # maintenance:
+  #   image: zknt/pixelfed
+  #   restart: unless-stopped # makes running maintenance jobs using docker-compose more reliable
+  #   env_file: /var/data/config/pixelfed/pixelfed.env
+  #   entrypoint: /worker-entrypoint.sh
+  #   networks:
+  #     - internal
+  #   healthcheck:
+  #     test: ['CMD', 'php artisan horizon:status | grep running']
+  #   volumes:
+  #     - /var/data/pixelfed:/var/www/storage
+  #     - /var/data/config/pixelfed/pixelfed.env:/var/www/.env
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.17.0/24

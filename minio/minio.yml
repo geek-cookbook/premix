@@ -1,0 +1,50 @@
+version: '3.2'
+
+services:
+  app:
+    image: minio/minio
+    env_file: /var/data/config/minio/minio.env
+    volumes:
+     - /var/data/minio:/data
+    networks:
+      - traefik_public
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public 
+
+        # traefikv1
+        - traefik.frontend.rule=Host:minio.example.com
+        - traefik.port=9000   
+
+        - traefik.console.frontend.rule=Host:minio-console.example.com
+        - traefik.console.port=9001 
+
+        # traefikv2 (death-by-labels, much?)
+        - traefik.http.middlewares.redirect-https.redirectScheme.scheme=https
+        - traefik.http.middlewares.redirect-https.redirectScheme.permanent=true
+
+        - traefik.http.routers.minio-https.rule=Host(`minio.example.com`)
+        - traefik.http.routers.minio-https.entrypoints=https
+        - traefik.http.routers.minio-https.service=minio
+        - traefik.http.routers.minio-http.rule=Host(`minio.example.com`)
+        - traefik.http.routers.minio-http.entrypoints=http
+        - traefik.http.routers.minio-http.middlewares=redirect-https
+        - traefik.http.routers.minio-http.service=minio
+        - traefik.http.services.minio.loadbalancer.server.port=9000
+
+        - traefik.http.routers.minio-console-https.rule=Host(`minio-console.example.com`)
+        - traefik.http.routers.minio-console-https.entrypoints=https
+        - traefik.http.routers.minio-console-https.service=minio-console
+        - traefik.http.routers.minio-console-http.rule=Host(`minio-console.example.com`)
+        - traefik.http.routers.minio-console-http.entrypoints=http
+        - traefik.http.routers.minio-console-http.middlewares=redirect-https
+        - traefik.http.routers.minio-console-http.service=minio-console
+        - traefik.http.services.minio-console.loadbalancer.server.port=9001
+
+    command:  minio server /data --console-address ":9001"
+
+networks:
+  traefik_public:
+    external: true

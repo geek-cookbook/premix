@@ -1,0 +1,10 @@
+---
+
+- hosts: all
+  gather_facts: no
+  become: yes
+
+  tasks: 
+
+  # Setup Proxmox Terraform plugin locally
+  - { import_role: { name: proxmox }, tags: [ proxmox ], become: no } 

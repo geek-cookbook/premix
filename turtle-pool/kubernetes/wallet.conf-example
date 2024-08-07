@@ -1,0 +1,12 @@
+{
+  "bind-address": "0.0.0.0",
+  "bind-port": 8070,
+  "container-file": "/wallet/trtl.wallet",
+  "container-password": "<YOUR-CONTAINER-PASSWORD>",
+  "daemon-address": "daemon",
+  "enable-cors": "",
+  "log-file": "/dev/stdout",
+  "log-level": 3,
+  "rpc-password": "<YOUR-WALLET-RPC-PASSWORD>",
+  "server-root": ""
+}

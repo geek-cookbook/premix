@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: proxy
+  namespace: unifi
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: unifi.funkypenguin.co.nz
+    http:
+      paths:
+      - backend:
+          serviceName: proxy
+          servicePort: 4180 

@@ -1,0 +1,450 @@
+---
+
+# If we have any proxmox hosts, then use them to create the necessary VMs
+- hosts: proxmox_servers:proxmox_vms
+  gather_facts: no
+  become: yes
+
+  tasks: 
+
+  # Setup Proxmox Infrastructure
+  - { import_role: { name: proxmox }, tags: [ proxmox, infrastructure ], become: no }
+
+# If we have any vsphere hosts, then use them to create the necessary VMs
+- hosts: vcenter_servers:vsphere_vms
+  gather_facts: no
+  become: yes
+
+  tasks: 
+
+  # Setup vSphere Infrastructure
+  - { import_role: { name: vsphere }, tags: [ vsphere, infrastructure ], become: no }
+
+
+#### If we have any swarm hosts
+# Init the Docker Swarm only on the first manager
+- hosts: swarm_nodes
+  gather_facts: yes
+  become: yes
+  vars:
+    orchestrator: docker-swarm # this'll tell all roles that we're doing a docker-swarm deploy
+
+  tasks:
+
+  - name: combine default values with user values (used to conditionally run tasks)
+    set_fact:
+      combined_config: "{{ recipe_default_config | combine(recipe_config, recursive=True) }}"
+    tags: always
+
+  - name: debug combined config
+    debug:
+      var: combined_config
+    tags: always
+    when: debug is defined
+    
+  # Setup swarm
+  - { import_role: { name: docker-swarm }, tags: [ docker-swarm, infrastructure ] }   
+
+  # Setup keepalived
+  - { import_role: { name: keepalived }, tags: [ keepalived, infrastructure ], when: combined_config.keepalived.enabled | bool }
+
+  # Setup ceph
+  - { import_role: { name: ceph }, tags: [ ceph, infrastructure ], when: combined_config.ceph.enabled | bool } 
+
+  - name: Run remainder of tasks on one node only
+    delegate_to: "{{ play_hosts[0] }}"
+    run_once: true
+    block:
+
+
+
+    # Setup traefik (the overlay network)
+    - { import_role: { name: traefik }, tags: [ traefik, infrastructure ] }   
+
+    # Setup traefik (select version)
+    - { import_role: { name: traefikv1 }, tags: [ traefikv1, infrastructure ], when: combined_config.traefikv1.enabled | bool }
+
+    - { import_role: { name: traefikv2 }, tags: [ traefikv2, infrastructure ], when: combined_config.traefikv2.enabled | bool }
+
+    ### non-critical swarm recipes start here, alphabeticized
+    
+    # Setup dex
+    - { import_role: { name: dex }, tags: [ dex, infrastructure ] }   
+
+    # Setup shepherd (automatic updates)
+    - { import_role: { name: shepherd }, tags: [ shepherd, infrastructure ] }
+
+    # Setup traefik-forward-auth
+    - { import_role: { name: traefik-forward-auth }, tags: [ traefik-forward-auth, infrastructure ] }
+
+    # Setup audiobookshelf
+    - { import_role: { name: docker-stack }, vars: { recipe: audiobookshelf }, tags: [ audiobookshelf ], when: combined_config.audiobookshelf.enabled | bool }
+
+    # Setup autopirate
+    - { import_role: { name: autopiratev2 }, tags: [ autopirate ], when: combined_config.autopiratev2.enabled | bool  }
+    
+    # Setup bazarr
+    - { import_role: { name: bazarr }, tags: [ bazarr ], when: combined_config.bazarr.enabled | bool  }
+    
+    # Setup bazarr4k
+    - { import_role: { name: bazarr4k }, tags: [ bazarr4k ], when: combined_config.bazarr4k.enabled | bool  }
+    
+    # Setup bitwarden
+    # - { import_role: { name: bitwarden }, tags: [ bitwarden ], when: combined_config.bitwarden.enabled | bool  }   
+    
+    # Setup duplicati
+    - { import_role: { name: duplicati }, tags: [ duplicati ], when: combined_config.duplicati.enabled | bool  }   
+    
+    # Setup headphones
+    - { import_role: { name: headphones }, tags: [ headphones ], when: combined_config.headphones.enabled | bool  }   
+
+    # Setup heimdall
+    - { import_role: { name: heimdall }, tags: [ heimdall ], when: combined_config.heimdall.enabled | bool  }   
+
+    # Setup invidious
+    - { import_role: { name: docker-stack }, vars: { recipe: invidious }, tags: [ invidious ], when: combined_config.invidious.enabled | bool }
+
+    # Setup kanboard
+    - { import_role: { name: kanboard }, tags: [ kanboard ], when: combined_config.kanboard.enabled | bool  }
+    
+    # Setup komga
+    - { import_role: { name: komga }, tags: [ komga ], when: combined_config.komga.enabled | bool  }
+    
+    # Setup lazylibrarian
+    - { import_role: { name: lazylibrarian }, tags: [ lazylibrarian ], when: combined_config.lazylibrarian.enabled | bool  }
+    
+    # Setup lidarr
+    - { import_role: { name: lidarr }, tags: [ lidarr ], when: combined_config.lidarr.enabled | bool  }
+
+    # Setup mylar
+    - { import_role: { name: mylar }, tags: [ mylar ], when: combined_config.mylar.enabled | bool  }
+
+    # Setup nextcloud
+    - { import_role: { name: nextcloud }, tags: [ nextcloud ], when: combined_config.nextcloud.enabled | bool  }
+
+    # Setup nightscout
+    - { import_role: { name: nightscout }, tags: [ nightscout ], when: combined_config.nightscout.enabled | bool }
+
+    # Setup nomie
+    - { import_role: { name: docker-stack }, vars: { recipe: nomie }, tags: [ nomie ], when: combined_config.nomie.enabled | bool }
+    
+    # Setup nzbget
+    - { import_role: { name: nzbget }, tags: [ nzbget ], when: combined_config.nzbget.enabled | bool  }
+    
+    # Setup nzbhydra
+    - { import_role: { name: nzbhydra }, tags: [ nzbhydra ], when: combined_config.nzbhydra.enabled | bool  }
+
+    # Setup ombi
+    - { import_role: { name: ombi }, tags: [ ombi ], when: combined_config.ombi.enabled | bool  }
+
+    # Setup oscarr
+    - { import_role: { name: oscarr }, tags: [ oscarr ], when: combined_config.oscarr.enabled | bool  }
+
+    # Setup paperless
+    - { import_role: { name: paperless }, tags: [ paperless ], when: combined_config.paperless.enabled | bool  }  
+
+    # Setup pixelfed
+    - { import_role: { name: docker-stack }, vars: { recipe: pixelfed }, tags: [ pixelfed ], when: combined_config.pixelfed.enabled | bool }
+        
+    # Setup portainer
+    - { import_role: { name: portainer }, tags: [ portainer ], when: combined_config.portainer.enabled | bool  }  
+
+    # Setup projectsend
+    - { import_role: { name: docker-stack }, vars: { recipe: projectsend }, tags: [ projectsend ], when: combined_config.projectsend.enabled | bool }
+    
+    # Setup prowlarr
+    - { import_role: { name: prowlarr }, tags: [ prowlarr ], when: combined_config.prowlarr.enabled | bool }
+        
+    # Setup radarr
+    - { import_role: { name: radarr }, tags: [ radarr ], when: combined_config.radarr.enabled | bool }
+    
+    # Setup radarr4k
+    - { import_role: { name: radarr4k }, tags: [ radarr4k ], when: combined_config.radarr4k.enabled | bool }
+
+    # Setup readarr
+    - { import_role: { name: readarr }, tags: [ readarr ], when: combined_config.readarr.enabled | bool }
+
+    # Setup restic
+    - { import_role: { name: restic }, tags: [ restic ], when: combined_config.restic.enabled | bool }   
+    
+    # Setup rtorrent
+    - { import_role: { name: rtorrent }, tags: [ rtorrent ], when: combined_config.rtorrent.enabled | bool }   
+
+    # Setup sabnzbd
+    - { import_role: { name: sabnzbd }, tags: [ sabnzbd ], when: combined_config.sabnzbd.enabled | bool }
+
+    # Setup searxng
+    - { import_role: { name: docker-stack }, vars: { recipe: searxng }, tags: [ searxng ], when: combined_config.searxng.enabled | bool }
+          
+    # Setup sonarr
+    - { import_role: { name: sonarr }, tags: [ sonarr, autopirate ], when: combined_config.sonarr.enabled | bool }   
+    
+    # Setup sonarr4k
+    - { import_role: { name: sonarr4k }, tags: [ sonarr4k, autopirate ], when: combined_config.sonarr4k.enabled | bool }   
+    
+    # Setup calibre-web
+    - { import_role: { name: calibre-web }, tags: [ calibre-web ], when: combined_config.calibre_web.enabled | bool }
+
+    # Setup keycloak
+    - { import_role: { name: keycloak }, tags: [ keycloak ], when: combined_config.keycloak.enabled | bool }
+
+    # Setup huginn
+    - { import_role: { name: huginn }, tags: [ huginn ], when: combined_config.huginn.enabled | bool }
+
+    # Setup linx
+    - { import_role: { name: linx }, tags: [ linx ], when: combined_config.linx.enabled | bool }
+
+    # Setup cyberchef
+    - { import_role: { name: cyberchef }, tags: [ cyberchef ], when: combined_config.cyberchef.enabled | bool }
+
+    # Setup funkwhale
+    - { import_role: { name: funkwhale }, tags: [ funkwhale ], when: combined_config.funkwhale.enabled | bool }
+
+    # Setup archivy
+    - { import_role: { name: archivy }, tags: [ archivy ], when: combined_config.archivy.enabled | bool }
+
+    # Setup mealie
+    - { import_role: { name: mealie }, tags: [ mealie ], when: combined_config.mealie.enabled | bool }
+
+      # Setup joplin
+    - { import_role: { name: joplin }, tags: [ joplin ], when: combined_config.joplin.enabled | bool }
+
+    # Setup nightscout
+    - { import_role: { name: nightscout }, tags: [ nightscout ], when: combined_config.nightscout.enabled | bool }
+
+    # Setup jellyfin
+    - { import_role: { name: jellyfin }, tags: [ jellyfin ], when: combined_config.jellyfin.enabled | bool }
+
+    # Setup searx
+    - { import_role: { name: searx }, tags: [ searx ], when: combined_config.searx.enabled | bool }
+
+    # Setup lemmy
+    - { import_role: { name: docker-stack }, vars: { recipe: lemmy }, tags: [ lemmy ], when: combined_config.lemmy.enabled | bool }
+
+    # Setup minio
+    - { import_role: { name: minio }, tags: [ minio ], when: combined_config.minio.enabled | bool }
+
+    # Setup plex
+    - { import_role: { name: plex }, tags: [ plex ], when: combined_config.plex.enabled | bool }
+
+    # Setup plex
+    - { import_role: { name: podgrab }, tags: [ podgrab ], when: combined_config.podgrab.enabled | bool }
+
+    # Setup polr
+    - { import_role: { name: polr }, tags: [ polr ], when: combined_config.polr.enabled | bool }
+
+    # Setup kavita
+    - { import_role: { name: kavita }, tags: [ kavita ], when: combined_config.kavita.enabled | bool }
+
+    # Setup authelia
+    - { import_role: { name: authelia }, tags: [ authelia ], when: combined_config.authelia.enabled | bool }
+
+    # Setup immich
+    - { import_role: { name: docker-stack }, vars: { recipe: immich }, tags: [ immich ], when: combined_config.immich.enabled | bool }
+
+    # Setup uptime-kuma
+    - { import_role: { name: docker-stack }, vars: { recipe: uptime-kuma }, tags: [ uptime-kuma ], when: combined_config.uptime_kuma.enabled | bool }
+
+# If we have any k3s masters
+- hosts: k3s_masters
+  gather_facts: yes
+  become: yes
+  vars:
+    orchestrator: kubernetes # this'll tell all roles that we're doing a kubernetes deploy
+
+  tasks:
+
+  # Setup K3s master
+  - { import_role: { name: k3s-master }, tags: [ k3s-master ] }   
+
+
+# If we have any k3s masters/workers, deploy them here
+- hosts: k3s_masters:k3s_workers
+  gather_facts: yes
+  become: yes
+  vars:
+    orchestrator: kubernetes # this'll tell all roles that we're doing a kubernetes deploy
+
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+
+  tasks:
+
+  # Setup K3s worker
+  - { import_role: { name: k3s-worker }, tags: [ k3s-worker ] }     
+
+  # # Setup ceph
+  # - { import_role: { name: ceph }, tags: [ ceph ], run_once: true }   
+
+# Create flux manifests using localhost
+- hosts: localhost
+  gather_facts: no
+  become: no
+  connection: local
+
+  vars:
+    orchestrator: kubernetes
+
+  tasks:
+
+  - name: combine default values with user values (used to conditionally run tasks)
+    set_fact:
+      combined_config: "{{ recipe_default_config | combine(recipe_config, recursive=True) }}"
+    tags: always
+
+  - name: debug combined config
+    debug:
+      var: combined_config
+    tags: always
+    when: debug is defined
+
+  # Traefik
+  - { import_role: { name: flux-repo }, vars: { recipe: traefik, config: traefik }, tags: [ traefik ], when: combined_config.traefik.enabled | bool }
+
+  # Rook-Ceph (Operator)
+  - { import_role: { name: flux-repo }, vars: { recipe: rook-ceph, config: rook_ceph }, tags: [ rook-ceph ], when: combined_config.rook_ceph.enabled | bool }
+
+  # Rook-Ceph Cluster
+  - { import_role: { name: flux-repo }, vars: { recipe: rook-ceph-cluster, config: rook_ceph_cluster }, tags: [ rook-ceph-cluster ], when: combined_config.rook_ceph_cluster.enabled | bool }
+
+  # authelia
+  - { import_role: { name: flux-repo }, vars: { recipe: authelia, config: authelia }, tags: [ authelia ], when: combined_config.authelia.enabled | bool }
+
+  # bazarr
+  - { import_role: { name: flux-repo }, vars: { recipe: bazarr, config: bazarr }, tags: [ bazarr ], when: combined_config.bazarr.enabled | bool }
+
+  # bitwarden
+  # - { import_role: { name: flux-repo }, vars: { recipe: bitwarden, config: bitwarden }, tags: [ bitwarden ], when: combined_config.bitwarden.enabled | bool }
+
+  # cert-manager
+  - { import_role: { name: flux-repo }, vars: { recipe: cert-manager, config: cert_manager }, tags: [ cert-manager ], when: combined_config.cert_manager.enabled | bool }
+
+  # cyberchef
+  - { import_role: { name: flux-repo }, vars: { recipe: cyberchef, config: cyberchef }, tags: [ cyberchef ], when: combined_config.cyberchef.enabled | bool }
+
+  # duplicati
+  - { import_role: { name: flux-repo }, vars: { recipe: duplicati, config: duplicati }, tags: [ duplicati ], when: combined_config.duplicati.enabled | bool }
+
+  # external-dns
+  - { import_role: { name: flux-repo }, vars: { recipe: external-dns, config: external_dns }, tags: [ external-dns ], when: combined_config.external_dns.enabled | bool }
+
+  # funkwhale
+  # - { import_role: { name: flux-repo }, vars: { recipe: funkwhale, config: funkwhale }, tags: [ funkwhale ], when: combined_config.funkwhale.enabled | bool }
+
+  # headphones
+  - { import_role: { name: flux-repo }, vars: { recipe: headphones, config: headphones }, tags: [ headphones ], when: combined_config.headphones.enabled | bool }
+
+  # heimdall
+  - { import_role: { name: flux-repo }, vars: { recipe: heimdall, config: heimdall }, tags: [ heimdall ], when: combined_config.heimdall.enabled | bool }
+
+  # homer
+  - { import_role: { name: flux-repo }, vars: { recipe: homer, config: homer }, tags: [ homer ], when: combined_config.homer.enabled | bool }
+
+  # jellyfin
+  - { import_role: { name: flux-repo }, vars: { recipe: jellyfin, config: jellyfin }, tags: [ jellyfin ], when: combined_config.jellyfin.enabled | bool }
+
+  # joplin
+  # - { import_role: { name: flux-repo }, vars: { recipe: joplin, config: joplin }, tags: [ joplin ], when: combined_config.joplin.enabled | bool }
+
+  # kavita
+  - { import_role: { name: flux-repo }, vars: { recipe: kavita, config: kavita }, tags: [ kavita ], when: combined_config.kavita.enabled | bool }
+
+  # keycloak
+  - { import_role: { name: flux-repo }, vars: { recipe: keycloak, config: keycloak }, tags: [ keycloak ], when: combined_config.keycloak.enabled | bool }
+
+  # kanboard
+  - { import_role: { name: flux-repo }, vars: { recipe: kanboard, config: kanboard }, tags: [ kanboard ], when: combined_config.kanboard.enabled | bool }
+
+   # kubernetes-dashboard
+  - { import_role: { name: flux-repo }, vars: { recipe: kubernetes-dashboard, config: kubernetes_dashboard }, tags: [ kubernetes-dashboard ], when: combined_config.kubernetes_dashboard.enabled | bool }
+
+ # lidarr
+  - { import_role: { name: flux-repo }, vars: { recipe: lidarr, config: lidarr }, tags: [ lidarr ], when: combined_config.lidarr.enabled | bool }
+
+  # mealie
+  - { import_role: { name: flux-repo }, vars: { recipe: mealie, config: mealie }, tags: [ mealie ], when: combined_config.mealie.enabled | bool }
+
+  # metallb-system
+  - { import_role: { name: flux-repo }, vars: { recipe: metallb-system, config: metallb_system }, tags: [ metallb-system ], when: combined_config.metallb_system.enabled | bool }
+
+  # minio
+  - { import_role: { name: flux-repo }, vars: { recipe: minio, config: minio }, tags: [ minio ], when: combined_config.minio.enabled | bool }
+
+  # mylar
+  - { import_role: { name: flux-repo }, vars: { recipe: mylar, config: mylar }, tags: [ mylar ], when: combined_config.mylar.enabled | bool }
+
+  # nextcloud
+  # - { import_role: { name: flux-repo }, vars: { recipe: nextcloud, config: nextcloud }, tags: [ nextcloud ], when: combined_config.nextcloud.enabled | bool }
+
+  # nfs-subdir-external-provisioner
+  - { import_role: { name: flux-repo }, vars: { recipe: nfs-provisioner, config: nfs_provisioner }, tags: [ nfs-provisioner ], when: combined_config.nfs_provisioner.enabled | bool }
+
+  # nightscout
+  - { import_role: { name: flux-repo }, vars: { recipe: nightscout, config: nightscout }, tags: [ nightscout ], when: combined_config.nightscout.enabled | bool }
+
+  # nzbget
+  - { import_role: { name: flux-repo }, vars: { recipe: nzbget, config: nzbget }, tags: [ nzbget ], when: combined_config.nzbget.enabled | bool }
+
+  # nzbhydra
+  - { import_role: { name: flux-repo }, vars: { recipe: nzbhydra, config: nzbhydra }, tags: [ nzbhydra ], when: combined_config.nzbhydra.enabled | bool }
+
+  # ombi
+  - { import_role: { name: flux-repo }, vars: { recipe: ombi, config: ombi }, tags: [ ombi ], when: combined_config.ombi.enabled | bool }
+
+  # overseerr
+  - { import_role: { name: flux-repo }, vars: { recipe: overseerr, config: overseerr }, tags: [ overseerr ], when: combined_config.overseerr.enabled | bool }
+
+  # paperless
+  - { import_role: { name: flux-repo }, vars: { recipe: paperless, config: paperless }, tags: [ paperless ], when: combined_config.paperless.enabled | bool }
+
+  # podgrab
+  - { import_role: { name: flux-repo }, vars: { recipe: podgrab, config: podgrab }, tags: [ podgrab ], when: combined_config.podgrab.enabled | bool }
+
+  # podinfo
+  - { import_role: { name: flux-repo }, vars: { recipe: podinfo, config: podinfo }, tags: [ podinfo ], when: combined_config.podinfo.enabled | bool }
+
+  # polr
+  - { import_role: { name: flux-repo }, vars: { recipe: polr, config: polr }, tags: [ polr ], when: combined_config.polr.enabled | bool }
+
+  # portainer
+  - { import_role: { name: flux-repo }, vars: { recipe: portainer, config: portainer }, tags: [ portainer ], when: combined_config.portainer.enabled | bool }
+
+  # plex
+  - { import_role: { name: flux-repo }, vars: { recipe: plex, config: plex }, tags: [ plex ], when: combined_config.plex.enabled | bool }
+
+  # prowlarr
+  - { import_role: { name: flux-repo }, vars: { recipe: prowlarr, config: prowlarr }, tags: [ prowlarr ], when: combined_config.prowlarr.enabled | bool }
+
+  # radarr
+  - { import_role: { name: flux-repo }, vars: { recipe: radarr, config: radarr }, tags: [ radarr ], when: combined_config.radarr.enabled | bool }
+
+  # readarr
+  - { import_role: { name: flux-repo }, vars: { recipe: readarr, config: readarr }, tags: [ readarr ], when: combined_config.readarr.enabled | bool }
+
+  # rtorrent-flood
+  - { import_role: { name: flux-repo }, vars: { recipe: rtorrent-flood, config: rtorrent_flood }, tags: [ rtorrent-flood ], when: combined_config.rtorrent_flood.enabled | bool }
+
+  # rtorrent
+  - { import_role: { name: flux-repo }, vars: { recipe: rtorrent, config: rtorrent }, tags: [ rtorrent ], when: combined_config.rtorrent.enabled | bool }
+
+  # sabnzbd
+  - { import_role: { name: flux-repo }, vars: { recipe: sabnzbd, config: sabnzbd }, tags: [ sabnzbd ], when: combined_config.sabnzbd.enabled | bool }
+
+  # sealed_secrets
+  - { import_role: { name: flux-repo }, vars: { recipe: sealed-secrets, config: sealed_secrets }, tags: [ sealed-secrets ], when: combined_config.sealed_secrets.enabled | bool }
+
+  # secret-replicator
+  - { import_role: { name: flux-repo }, vars: { recipe: secret-replicator, config: secret_replicator }, tags: [ secret-replicator ], when: combined_config.secret_replicator.enabled | bool }
+
+
+  # searx
+  - { import_role: { name: flux-repo }, vars: { recipe: searx, config: searx }, tags: [ searx ], when: combined_config.searx.enabled | bool }
+
+  # snippet-box
+  - { import_role: { name: flux-repo }, vars: { recipe: snippet-box, config: snippet_box }, tags: [ snippet-box ], when: combined_config.snippet_box.enabled | bool }
+
+  # sonarr
+  - { import_role: { name: flux-repo }, vars: { recipe: sonarr, config: sonarr }, tags: [ sonarr ], when: combined_config.sonarr.enabled | bool }
+
+  # uptime-kuma
+  - { import_role: { name: flux-repo }, vars: { recipe: uptime-kuma, config: uptime_kuma }, tags: [ uptime-kuma ], when: combined_config.uptime_kuma.enabled | bool }

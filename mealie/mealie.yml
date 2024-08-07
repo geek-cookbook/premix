@@ -1,0 +1,34 @@
+version: "3.2"
+
+services:
+  app:
+    image: hkotel/mealie:latest
+    env_file: /var/data/config/mealie/mealie.env
+    volumes:
+      - /var/data/mealie:/app/data
+      - /etc/localtime:/etc/localtime:ro      
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:mealie.example.com
+        - traefik.port=9000
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.mealie.rule=Host(`mealie.example.com`)"
+        - "traefik.http.routers.mealie.entrypoints=https"
+        - "traefik.http.services.mealie.loadbalancer.server.port=9000"
+        - "traefik.http.routers.mealie.middlewares=forward-auth"
+        
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

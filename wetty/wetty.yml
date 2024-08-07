@@ -1,0 +1,37 @@
+version: "3"
+services:
+  wetty:
+    image: krishnasrinivas/wetty
+    env_file : /var/data/config/wetty/wetty.env
+    networks:
+        - internal
+  proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/wetty/wetty.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:wetty.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/data/config/wetty/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://wetty:3000
+      -redirect-url=https://wetty.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+      
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.45.0/24

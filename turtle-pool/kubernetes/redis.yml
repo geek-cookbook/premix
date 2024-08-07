@@ -1,0 +1,54 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: trtl
+  name: redis
+  labels:
+    app: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - image: redis
+          name: redis
+          resources:
+            requests:
+              memory: "10Mi"
+              cpu: "0.01"
+            limits:
+              memory: "50Mi"
+              cpu: "0.02"
+          command: [ "redis-server" ]
+          args: [ "/config/redis.conf" ]
+          volumeMounts:
+            - name: redis-volumeclaim
+              mountPath: /data
+            - name: redis-config
+              mountPath: /config
+      volumes:
+        - name: redis-volumeclaim
+          persistentVolumeClaim:
+            claimName: redis-volumeclaim
+        - name: redis-config
+          configMap:
+            name: redis.conf
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: redis
+  namespace: trtl
+spec:
+  selector:
+    app: redis
+  ports:
+  - protocol: TCP
+    port: 6379
+  clusterIP: None

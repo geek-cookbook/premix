@@ -1,0 +1,87 @@
+# Run these locally
+# Terraform Template requires cloud-init and cloud-init-vmware-guestinfo to be present to create users
+# curl -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/master/install.sh | sh -
+- name: Prepare terraform plan locally
+  delegate_to: localhost
+  block:
+      
+  - name: Create temporary directory for terraform plan
+    file:
+      name: "{{ terraform_dir }}"
+      state: directory
+
+  - name: "Are there existing .tf files in {{ terraform_dir }}?"
+    find:
+      paths: "{{ terraform_dir }}"
+      patterns: "*.tf"
+    register: files_to_delete
+
+  - name: "Delete any .tf files found in {{ terraform_dir }}"
+    file:
+      path: "{{ item.path }}"
+      state: absent
+    with_items: "{{ files_to_delete.files }}"
+
+  - name: Create terraform plan for vms
+    template:
+      src: swarm_node.tf.j2
+      dest: "{{ terraform_dir }}/{{ inventory_hostname_short }}.tf"
+    when: "inventory_hostname in groups['vsphere_vms']" 
+    with_items: "{{ groups['vsphere_vms'] }}"
+
+  - name: Create create terraform plan for vpshere data sources
+    template:
+      src: data.tf.j2
+      dest: "{{ terraform_dir }}/data.tf"
+
+  - name: Create cloud-init yaml for vm userdata
+    template:
+      src: userdata.yaml.j2
+      dest: "{{ terraform_dir }}/userdata.yaml"
+
+  - name: Create cloud-init yaml for vm metadata
+    template:
+      src: metadata.yaml.j2
+      dest: "{{ terraform_dir }}/{{ inventory_hostname_short }}.yaml"
+    when: "inventory_hostname in groups['vsphere_vms']" 
+    with_items: "{{ groups['vsphere_vms'] }}"
+
+#  - name: Create terraform plan for ci runners
+#    template:
+#      src: swarm_node.tf.j2
+#      dest: "{{ terraform_dir }}/{{ inventory_hostname_short }}.tf"
+#    when: "inventory_hostname in groups['vsphere_vms_ci']" 
+#    with_items: "{{ groups['vsphere_vms_ci'] }}"    
+
+  - name: Actually create VMs with terraform (can only run once)
+    when: "inventory_hostname in groups['vcenter_servers']"
+    run_once: true 
+    block:
+
+    - name: Create terraform plan for terraform provider
+      template:
+        src: main.tf.j2
+        dest: "{{ terraform_dir }}/main.tf"
+
+    - name: Run terraform init
+      command: terraform init -upgrade
+      args:
+        chdir: "{{ terraform_dir }}"
+
+    - name: Run terraform plan
+      command: terraform plan
+      args:
+        chdir: "{{ terraform_dir }}"
+
+    - name: Run terraform apply
+      command: terraform apply -auto-approve -parallelism=1
+      args:
+        chdir: "{{ terraform_dir }}"
+
+- name: Wait for nodes to boot
+  when: "inventory_hostname in groups['vsphere_vms']"
+  wait_for_connection: 
+    delay: 60
+    timeout: 300
+  vars:
+    ansible_pipelining: no

@@ -1,0 +1,16 @@
+{{ include "funkycore.notes.header" . }}
+
+Success! AutoPirate has been installed into your cluster.
+
+{{ include "funkycore.notes.chartSuggestion" . }}
+
+{{ if .Values.ingress.enabled }}
+You can access your services at the following links:
+{{- range $key,$value := .Values.apps -}}
+{{ if and $value.enable $value.ingress.enable }}
+{{ title $key }} - {{ $value.ingress.host }}{{ $value.ingress.path }}
+{{ end }}
+{{- end -}}
+{{ end }}
+
+{{ include "funkycore.notes.footer" . }}

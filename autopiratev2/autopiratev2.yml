@@ -1,0 +1,22 @@
+version: "3.2"
+
+# What is this?
+#
+# This stack exists solely to deploy the autopirate overlay network, so that
+# other stacks (including sonarr, radarr, etc) can attach to it
+
+services:
+  scratch:
+    image: scratch
+    deploy: 
+      replicas: 0
+    networks:
+      - public
+
+networks:
+  public:
+    driver: overlay
+    attachable: true
+    ipam:
+      config:
+        - subnet: 172.16.11.0/24

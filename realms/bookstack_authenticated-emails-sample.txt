@@ -1,0 +1,1 @@
+place any email addresses you want to provide access to via the oauth proxy, in here, one-per-line

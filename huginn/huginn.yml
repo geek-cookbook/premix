@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+
+  db:
+    env_file: /var/data/config/huginn/huginn.env
+    image: postgres:latest
+    volumes:
+      - /var/data/runtime/huginn/database:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - internal
+
+  huginn:
+    image: huginn/huginn
+    env_file: /var/data/config/huginn/huginn.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - internal   
+      - traefik_public
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:huginn.example.com
+        - traefik.port=3000
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.huginn.rule=Host(`huginn.example.com`)"
+        - "traefik.http.routers.huginn.entrypoints=https"
+        - "traefik.http.services.huginn.loadbalancer.server.port=3000"
+        - "traefik.http.routers.huginn.middlewares=forward-auth"
+
+
+  db-backup:
+    image: postgres:latest
+    env_file: /var/data/config/huginn/huginn-db-backup.env
+    volumes:
+      - /var/data/huginn/database-dump:/dump
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        pg_dump -Fc > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.psql
+        ls -tr /dump/dump_*.psql | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.6.0/24

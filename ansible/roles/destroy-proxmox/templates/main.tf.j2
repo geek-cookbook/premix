@@ -1,0 +1,6 @@
+provider "proxmox" {
+    pm_api_url = "https://{{ ansible_host }}:8006/api2/json"
+    pm_user = "{{ proxmox_host_username }}"
+    pm_tls_insecure = true
+    pm_password = "{{ proxmox_host_password }}"
+}

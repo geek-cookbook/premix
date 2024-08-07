@@ -1,0 +1,22 @@
+{{ $app := .Values.apps.nzbget }} {{ $fullname := printf "%s-%s-%s" .Release.Name $app.name .Chart.Name | trunc 63 | trimSuffix "-" }}
+{{- if $app.enable  -}}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ $fullname }}
+data:
+    bootstrap: |-
+        #!/usr/bin/with-contenv bash
+
+        CONFIGFILE=/config/nzbget.conf
+
+        echo "[cfg-bootstrap] Modifying config ($CONFIGFILE)"
+
+        sed -i 's/ControlUsername=*/ControlUsername=/g' /config/nzbget.conf
+        echo "[cfg-bootstrap] Removed Username"
+
+        sed -i 's/ControlPassword=*/ControlPassword=/g' /config/nzbget.conf
+        echo "[cfg-bootstrap] Removed Password"
+    
+
+{{- end -}}

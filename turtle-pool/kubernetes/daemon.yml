@@ -1,0 +1,45 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: trtl
+  name: daemon
+  labels:
+    app: daemon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: daemon
+  template:
+    metadata:
+      labels:
+        app: daemon
+    spec:
+      containers:
+        - image: funkypenguin/turtlecoind
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "600Mi"
+              cpu: "0.2"
+          name: daemon
+          volumeMounts:
+            - name: daemon-volumeclaim
+              mountPath: /root/.TurtleCoin
+      volumes:
+        - name: daemon-volumeclaim
+          persistentVolumeClaim:
+            claimName: daemon-volumeclaim
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: daemon
+  namespace: trtl
+spec:
+  selector:
+    app: daemon
+  ports:
+  - protocol: TCP
+    port: 11898
+  clusterIP: None

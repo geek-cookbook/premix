@@ -1,0 +1,8 @@
+# Include tasks depending on whether we're working on Docker Swarm or kubernetes
+- name: Import docker-swarm tasks
+  import_tasks: docker-swarm.yml
+  when: orchestrator == "docker-swarm"
+
+- name: Import kubernetes tasks
+  import_tasks: kubernetes.yml
+  when: orchestrator == "kubernetes"

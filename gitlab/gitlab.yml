@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  redis:
+    image: sameersbn/redis:latest
+    command:
+    - --loglevel warning
+    volumes:
+    - /var/data/gitlab/redis:/var/lib/redis:Z
+    networks:
+    - internal
+
+  postgresql:
+    image: sameersbn/postgresql:9.6-2
+    env_file: /var/data/config/gitlab/gitlab.env
+    volumes:
+    - /var/data/gitlab/postgresql:/var/lib/postgresql:Z
+    networks:
+    - internal
+
+  gitlab:
+    image: sameersbn/gitlab:latest
+    env_file: /var/data/config/gitlab/gitlab.env
+    networks:
+    - internal
+    - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:gitlab.funkypenguin.co.nz
+        - traefik.docker.network=traefik
+        - traefik.port=80
+      restart_policy:
+        delay: 10s
+        max_attempts: 10
+        window: 60s
+    ports:
+    - "2222:22"
+    volumes:
+    - /var/data/gitlab/gitlab:/home/git/data:Z
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.2.0/24

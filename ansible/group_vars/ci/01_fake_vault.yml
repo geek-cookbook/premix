@@ -1,0 +1,12 @@
+vault_proxmox_host_password: dont-use-me-but-dont-fail-pipelines
+vault_ceph_dashboard_username: batman
+vault_ceph_dashboard_password: supermansucks
+
+vault_config:
+  traefik:
+    aws_access_key_id: "change-me-if-you-use-route53"
+    aws_secret_access_key: "change-me-if-you-use-route53"
+  restic:
+    aws_access_key_id: "change-me-if-you-use-restic"
+    aws_secret_access_key: "change-me-if-you-use-restic"
+    restic_password: "change-me-if-you-use-restic"

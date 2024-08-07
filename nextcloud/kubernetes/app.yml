@@ -1,0 +1,67 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: nextcloud
+  name: app
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - image: nextcloud
+          name: app
+          resources:
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          volumeMounts:
+            - name: nextcloud-app
+              mountPath: /var/www/html
+          env:
+          - name: MYSQL_HOST
+            value: "db"
+          - name: MYSQL_DATABASE
+            value: "nextcloud"
+          - name: MYSQL_USER
+            value: "nextcloud"
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: nextcloud-credentials
+                key: mysql-password.secret
+          - name: NEXTCLOUD_ADMIN_USER
+            value: "admin"
+          - name: NEXTCLOUD_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: nextcloud-credentials
+                key: admin-password.secret
+      volumes:
+        - name: nextcloud-app
+          persistentVolumeClaim:
+            claimName: nextcloud-app
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+  namespace: nextcloud
+spec:
+  selector:
+    app: app
+  ports:
+  - protocol: TCP
+    port: 80
+  clusterIP: None

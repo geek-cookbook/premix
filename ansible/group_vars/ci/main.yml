@@ -1,0 +1,252 @@
+proxmox_vm_ram: 8192
+proxmox_vm_cores: 4
+proxmox_vm_network_bridge: vmbr0
+proxmox_vm_vlan_tag: 8
+proxmox_vm_disk0_size: 50G
+proxmox_vm_disk1_size: 20G
+proxmox_storage: local-lvm
+terraform_dir: ~/.terraform/funky-penguins-are-funky-ci
+proxmox_vlan_gateway: 192.168.39.1
+proxmox_host_username: root@pam
+proxmox_host_name: proxmox # set this to the name of the proxmox host (you may have more than one proxmox host in your cluster. Remember, this can be overridden by a host-specific variable)
+
+github_actions_runner_repo: https://github.com/funkypenguin/geek-cookbook-premix
+github_actions_runner_token: "{{ vault_github_actions_runner_token }}"
+github_actions_service_name: actions.runner.funkypenguin-geek-cookbook-premix.{{ proxmox_controller_name }}.service
+
+# The user needs to set these in their own config if they want to log into DockerHub and avoid ratelimits
+docker_hub_username: "geekcookbookci"
+docker_hub_password: "{{ vault_docker_hub_password }}"
+docker_hub_email: "geek-cookbook-ci@funkypenguin.co.nz"
+
+# Specific to the test VMs
+keepalived_virtual_ips: 192.168.39.100
+keepalived_unicast_peers: 
+  - 192.168.39.101
+  - 192.168.39.102
+  - 192.168.39.103
+
+dns_domain: elpenguino.be
+
+admin_ssh_user: actions-runner
+admin_ssh_key: |
+  ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBJXcadJS8ZnKHJB+xFV+sGg3RqfnnUgYuLHZjqgDpiP+4VFMBeRUiotZmoSLNWYud/x/cma1ApqfBi8BYkhIM14= ci@ci
+  ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkmE2zK7uE9q75nzQxa9tQPHiCgaEUkIDj9xdoPL911 davidy@funkypenguin.co.nz
+
+recipe_config:
+  traefik:
+    enabled: true
+  dex:
+    enabled: true
+  traefikv2:
+    enabled: true
+    dns_provider: route53
+    env:
+      AWS_ACCESS_KEY_ID: "{{ vault_config.traefik.aws_access_key_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ vault_config.traefik.aws_secret_access_key }}"
+      AWS_HOSTED_ZONE_ID: Z01084703DSA5TAOLWO1Y
+      AWS_REGION: ap-southeast-2
+  traefikv1:
+    enabled: false
+    dns_provider: route53
+    env:
+      AWS_ACCESS_KEY_ID: "{{ vault_config.traefik.aws_access_key_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ vault_config.traefik.aws_secret_access_key }}"    
+
+  audiobookshelf:
+    enabled: true
+
+  autopiratev2:
+    enabled: true
+    stacked_recipes: # Use this to "stack" a recipe by combining individual recipes into one
+    - bazarr
+    - bazarr4k
+    - headphones
+    - jackett
+    - lidarr
+    - mylar
+    - nzbget
+    - nzbhydra
+    - ombi
+    - oscarr
+    - prowlarr
+    - radarr
+    - radarr4k
+    - readarr
+    - rtorrent
+    - sonarr
+    - sonarr4k
+    run_pre_deploy: |
+      sed -i '\|imaginary-string-i-want-to-remove-pre-deployment|d' /var/data/config/mylar/mylar.yml 
+
+  bitwarden:
+    enabled: true
+
+  bazarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  bazarr4k:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  headphones:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  heimdall:
+    enabled: true
+
+  lazylibrarian:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  lemmy:
+    enabled: true
+
+  lidarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  mylar:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  nextcloud:
+    enabled: true
+
+  nightscout:
+    enabled: true
+
+  nzbget:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  nzbhydra:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  nomie:
+    enabled: true
+
+  ombi:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  oscarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  prowlarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  jackett:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  radarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+  
+  radarr4k:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  readarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  calibre_web:
+    enabled: true    
+
+  funkwhale:
+    enabled: true
+
+  komga:
+    enabled: true
+
+  shepherd:
+    enabled: true
+
+  keycloak:
+    enabled: true
+    
+  huginn:
+    enabled: true
+
+  linx:
+    enabled: true
+
+  cyberchef:
+    enabled: true
+
+  portainer:
+    enabled: true
+
+  plex:
+    enabled: true
+
+  polr:
+    enabled: true
+
+  projectsend:
+    enabled: true
+
+  authelia:
+    enabled: true
+
+  immich:
+    enabled: true
+
+  invidious:
+    enabled: true    
+    
+  restic:
+    enabled: true
+    env_backup:
+      RUN_ON_STARTUP: "true"
+      AWS_ACCESS_KEY_ID: "{{ vault_config.restic.aws_access_key_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ vault_config.restic.aws_secret_access_key }}"
+      AWS_DEFAULT_REGION: ap-southeast-2
+      RESTIC_REPOSITORY: "{{ vault_config.restic.repository }}"
+      RESTIC_PASSWORD: "{{ vault_config.restic.restic_password }}"
+    env_prune:
+      AWS_ACCESS_KEY_ID: "{{ vault_config.restic.aws_access_key_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ vault_config.restic.aws_secret_access_key }}"
+      AWS_DEFAULT_REGION: ap-southeast-2
+      RESTIC_REPOSITORY: "{{ vault_config.restic.repository }}"
+      RESTIC_PASSWORD: "{{ vault_config.restic.restic_password }}"        
+
+  rtorrent:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  sonarr:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  sonarr4k:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+    
+  sabnzbd:
+    enabled: false # because it's including in the multi-stack autopiratev2 recipe
+
+  archivy:
+    enabled: true
+
+  mealie:
+    enabled: true
+
+  joplin:
+    enabled: true
+
+  searx:
+    enabled: true
+
+  searxng:
+    enabled: true
+
+  jellyfin:
+    enabled: true
+
+  paperless:
+    enabled: true
+
+  pixelfed:
+    enabled: true    
+
+  minio:
+    enabled: true
+
+  kavita:
+    enabled: true
+
+  podgrab:
+    enabled: true
+
+  uptime_kuma:
+    enabled: true

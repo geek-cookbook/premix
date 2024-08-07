@@ -1,0 +1,13 @@
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: polr
+
+- name: Create extra directories required
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+  - /var/data/polr/database-dump
+  - /var/data/runtime/polr/database

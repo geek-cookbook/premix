@@ -1,0 +1,37 @@
+version: "3.2"
+
+services:
+  radarr4k:
+    image: lscr.io/linuxserver/radarr:latest
+    env_file: /var/data/config/radarr4k/radarr4k.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/radarr4k:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:radarr4k.example.com
+        - traefik.port=7878
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.radarr4k.rule=Host(`radarr4k.example.com`)"
+        - "traefik.http.routers.radarr4k.entrypoints=https"
+        - "traefik.http.services.radarr4k.loadbalancer.server.port=7878"
+        - "traefik.http.routers.radarr4k.middlewares=forward-auth"
+    networks:
+      - traefik_public
+      - autopiratev2_public 
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

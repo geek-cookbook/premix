@@ -1,0 +1,13 @@
+proxmox_vm_ram: 2048
+proxmox_vm_cores: 2
+proxmox_vm_network_bridge: vmbr0
+proxmox_vm_disk0_size: 10
+proxmox_vm_disk1_size: 20
+proxmox_storage: pve2
+terraform_dir: ~/.terraform/funky-penguins-are-funky
+proxmox_vlan_gateway: 192.168.38.1
+admin_ssh_user: davidy
+admin_ssh_key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFkmE2zK7uE9q75nzQxa9tQPHiCgaEUkIDj9xdoPL911 davidy@funkypenguin.co.nz
+proxmox_host_username: root@pam
+proxmox_host_password: proxmox # you should probably change this!
+proxmox_host_name: proxmox # set this to the name of the proxmox host (you may have more than one proxmox host in your cluster. Remember, this can be overridden by a host-specific variable)

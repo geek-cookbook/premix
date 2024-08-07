@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: app
+  namespace: nextcloud
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: nextcloud.funkypenguin.co.nz
+    http:
+      paths:
+      - backend:
+          serviceName: app
+          servicePort: 80

@@ -1,0 +1,7 @@
+# {{Chart.title}}
+
+{{Chart.description}}
+
+## Parameters
+
+{{Chart.valuesTable}}

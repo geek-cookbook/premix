@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: trtl-pool
+  namespace: trtl
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: trtl.heigh-ho.funkypenguin.co.nz
+    http:
+      paths:
+      - backend:
+          serviceName: pool-ui
+          servicePort: 80
+  - host: api.trtl.heigh-ho.funkypenguin.co.nz
+    http:
+      paths:
+      - backend:
+          serviceName: pool-ui
+          servicePort: 8117

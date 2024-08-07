@@ -1,0 +1,106 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: trtl
+  name: pool
+  labels:
+    app: pool
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pool
+  template:
+    metadata:
+      labels:
+        app: pool
+    spec:
+      containers:
+        - image: funkypenguin/cryptonote-nodejs-pool
+          imagePullPolicy: Always
+          command: [ "node" ]
+          args: [ "init.js", "-config=/config-workaround-bug/trtl.json" ]
+          name: pool
+          resources:
+            requests:
+              memory: "350Mi"
+              cpu: "0.1"
+          volumeMounts:
+            - name: pool-config
+              mountPath: /config-workaround-bug/trtl.json
+              subPath: trtl.json
+            - name: pool-email-txt
+              mountPath: /config/email.txt
+              subPath: email.txt
+        - image: nginx
+          name: nginx
+          volumeMounts:
+            - name: pool-volumeclaim
+              mountPath: /usr/share/nginx/html
+        - image: funkypenguin/poor-mans-k8s-lb
+          imagePullPolicy: Always
+          name: 3333-phone-home
+          env:
+          - name: REPEAT_INTERVAL
+            value: "600"
+          - name: FRONTEND_PORT
+            value: "3333"
+          - name: BACKEND_PORT
+            value: "30333"
+          - name: NAME
+            value: "trtl-easy"
+          - name: WEBHOOK
+            value: "https://traefik.funkypenguin.co.nz:9000/hooks/update-haproxy"
+          - name: WEBHOOK_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: trtl-credentials
+                key: webhook_token.secret
+        - image: funkypenguin/poor-mans-k8s-lb
+          imagePullPolicy: Always
+          name: 5555-phone-home
+          env:
+          - name: REPEAT_INTERVAL
+            value: "600"
+          - name: FRONTEND_PORT
+            value: "5555"
+          - name: BACKEND_PORT
+            value: "30555"
+          - name: NAME
+            value: "trtl-medium"
+          - name: WEBHOOK
+            value: "https://traefik.funkypenguin.co.nz:9000/hooks/update-haproxy"
+          - name: WEBHOOK_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: trtl-credentials
+                key: webhook_token.secret
+        - image: funkypenguin/poor-mans-k8s-lb
+          imagePullPolicy: Always
+          name: 7777-phone-home
+          env:
+          - name: REPEAT_INTERVAL
+            value: "600"
+          - name: FRONTEND_PORT
+            value: "7777"
+          - name: BACKEND_PORT
+            value: "30777"
+          - name: NAME
+            value: "trtl-high"
+          - name: WEBHOOK
+            value: "https://traefik.funkypenguin.co.nz:9000/hooks/update-haproxy"
+          - name: WEBHOOK_TOKEN
+            valueFrom:
+              secretKeyRef:
+                name: trtl-credentials
+                key: webhook_token.secret
+      volumes:
+        - name: pool-config
+          configMap:
+            name: trtl.json
+        - name: pool-email-txt
+          configMap:
+            name: email.txt 
+        - name: pool-volumeclaim
+          persistentVolumeClaim:
+            claimName: pool-volumeclaim

@@ -1,0 +1,11 @@
+- name: "stop traefikv1 stack"
+  docker_stack:
+    state: absent
+    name: traefikv1
+
+- name: "start traefikv1 stack"
+  docker_stack:
+    state: present
+    name: "traefikv1"
+    compose: "/var/data/config/traefikv1/traefikv1.yml"
+    

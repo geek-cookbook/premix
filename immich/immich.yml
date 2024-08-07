@@ -1,0 +1,100 @@
+version: "3.2"
+
+services:
+  immich-server:
+    image: altran1502/immich-server:release
+    entrypoint: ["/bin/sh", "./start-server.sh"]
+    volumes:
+      - /var/data/immich/upload:/usr/src/app/upload
+    env_file: /var/data/config/immich/immich.env
+    networks:
+      - internal
+
+  immich-microservices:
+    image: altran1502/immich-server:release
+    entrypoint: ["/bin/sh", "./start-microservices.sh"]
+    volumes:
+      - /var/data/immich/upload:/usr/src/app/upload
+    env_file: /var/data/config/immich/immich.env
+    networks:
+      - internal
+
+  immich-machine-learning:
+    image: altran1502/immich-machine-learning:release
+    entrypoint: ["/bin/sh", "./entrypoint.sh"]
+    volumes:
+      - /var/data/immich/upload:/usr/src/app/upload
+    env_file: /var/data/config/immich/immich.env
+    networks:
+      - internal
+
+  immich-web:
+    image: altran1502/immich-web:release
+    entrypoint: ["/bin/sh", "./entrypoint.sh"]
+    env_file: /var/data/config/immich/immich.env
+    networks:
+      - internal
+
+  redis:
+    image: redis:6.2
+    networks:
+      - internal
+
+  db:
+    image: postgres:14
+    env_file: /var/data/config/immich/immich.env
+    volumes:
+      - /var/data/runtime/immich/database:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  db-backup:
+    image: postgres:14
+    env_file: /var/data/config/immich/immich-db-backup.env
+    volumes:
+      - /var/data/immich/database-dump:/dump
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        pg_dump -Fc > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.psql
+        ls -tr /dump/dump_*.psql | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+
+  immich-proxy:
+    container_name: immich_proxy
+    image: altran1502/immich-proxy:release
+    ports:
+      - 2283:80
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:immich.example.com
+        - traefik.port=80
+
+        # traefikv2
+        - "traefik.http.routers.immich.rule=Host(`immich.example.com`)"
+        - "traefik.http.routers.immich.entrypoints=https"
+        - "traefik.http.services.immich.loadbalancer.server.port=80"        
+    networks:
+      - internal
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.8.0/24

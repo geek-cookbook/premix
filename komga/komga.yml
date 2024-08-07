@@ -1,0 +1,34 @@
+version: "3.2"
+
+services:
+  komga:
+    image: gotson/komga
+    env_file: /var/data/config/komga/komga.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/komga:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:komga.example.com
+        - traefik.port=8080
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.komga.rule=Host(`komga.example.com`)"
+        - "traefik.http.routers.komga.entrypoints=https"
+        - "traefik.http.services.komga.loadbalancer.server.port=8080"
+        #- "traefik.http.routers.komga.middlewares=forward-auth"
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

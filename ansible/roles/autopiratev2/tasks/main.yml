@@ -1,0 +1,12 @@
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: autopiratev2
+
+- name: "{{ recipe }} --> ensure necessary directories exist"
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /var/data/media

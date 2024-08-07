@@ -1,0 +1,39 @@
+# This indented section should only run on proxmox
+# Run these locally
+- name: Prepare terraform plan locally
+  delegate_to: localhost
+  block:
+  
+  - name: DESTROY INFRASTRUCTURE
+    pause: 
+      prompt: |
+        Please confirm you want to destroy provisioned ProxMox VMs! 
+        DATA LOSS MAY OCCUR.
+        Press return to continue. Press Ctrl+c and then "a" to abort'
+
+  # - name: Create terraform plan for terraform provider
+  #   template:
+  #     src: main.tf.j2
+  #     dest: "{{ terraform_dir }}/main.tf"
+  #   when: "inventory_hostname in groups['proxmox_servers']" 
+
+  # - name: Create terraform plan for vms
+  #   template:
+  #     src: swarm_node.tf.j2
+  #     dest: "{{ terraform_dir }}/{{ inventory_hostname_short }}.tf"
+  #   when: "inventory_hostname in groups['proxmox_vms']" 
+  #   with_items: "{{ groups['proxmox_vms'] }}"
+
+  - name: Run terraform init
+    command: terraform init
+    args:
+      chdir: "{{ terraform_dir }}"
+    when: "inventory_hostname in groups['proxmox_servers']" 
+    run_once: true      
+
+  - name: Run terraform DESTROY 💣
+    command: terraform destroy -auto-approve
+    args:
+      chdir: "{{ terraform_dir }}"
+    when: "inventory_hostname in groups['proxmox_servers']" 
+    run_once: true              

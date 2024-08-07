@@ -1,0 +1,120 @@
+- name: "{{ requested_recipe }} --> ensure /var/data/{{ requested_recipe }} exists"
+  file:
+    path: "/var/data/{{ requested_recipe }}"
+    state: directory    
+
+- name: "{{ requested_recipe }} --> copy stack config to temporary directory"
+  copy:
+    src: ../../../{{ requested_recipe }}
+    dest: /var/data/config
+
+- name: "{{ requested_recipe }} --> copy samples to _real_ files if the real ones don't exist"
+  shell: |
+    cd /var/data/config/{{ requested_recipe }}
+    for SAMPLE in `ls *-sample`; do
+      REALNAME=`basename -s '-sample' $SAMPLE`
+      if [ ! -f "$REALNAME" ]; then
+        cp $SAMPLE $REALNAME
+      fi
+    done
+    
+# Future enhancement - build additional .env files by walking the dictionary
+# - name: "{{ requested_recipe }} --> are there more .env files which we need to substitute?"
+#   shell: |
+#     cd /var/data/config/{{ requested_recipe }}
+#     ls *.env | grep -v {{ requested_recipe }}.env | sed 's/restic-//'
+#   register: _extra_env_files
+
+# - debug:
+#     var: _extra_env_files.stdout_lines
+
+# - name: "{{ requested_recipe }} --> insert env vars into additional env files"
+#   shell: echo "Outer item is {{ item }}"
+#   with_items: _extra_env_files.stdout_lines
+
+
+- name: "{{ requested_recipe }} -> ensure /var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.env exists"
+  file:
+    path: /var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.env 
+    state: touch
+    
+- name: "{{ requested_recipe }} -> insert env vars for this recipe"
+  lineinfile:
+    path: "/var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.env"
+    regexp: '^{{ item.key }}='
+    line: '{{ item.key }}={{ item.value}}'
+  with_items: "{{ combined_config[requested_recipe].env | dict2items }}"  
+  when: 
+  - combined_config[requested_recipe].env is defined
+  no_log: true
+
+- name: "{{ requested_recipe }} --> find all config files in /var/data/config/{{ requested_recipe }}/"
+  find:
+    paths: "/var/data/config/{{ requested_recipe }}"
+  register: _config_files
+  # future enhancement - update the pattern on this file to ignore sample files
+
+- name: "{{ requested_recipe }} --> switch traefik to use authelia as TFA target"
+  replace:
+    path: "{{ item.path }}"
+    regexp: traefik.frontend.auth.forward.address=[^"']+$
+    replace: 'traefik.frontend.auth.forward.address=http://authelia:9091/api/verify?rd=https://authelia.example.com/'
+  with_items: '{{ _config_files.files }}'
+  when:
+  - combined_config.authelia.enabled | bool
+
+- name: "{{ requested_recipe }} --> replace occurances of {{ requested_recipe }}.example.com within files in /var/data/config/{{ requested_recipe }}/ with user's chosen subdomain if configured"
+  replace:
+    path: "{{ item.path }}"
+    regexp: '{{ requested_recipe }}.example.com'
+    replace: '{{ combined_config[requested_recipe].subdomain }}.example.com' 
+  with_items: '{{ _config_files.files }}'
+  when: 
+  - combined_config[requested_recipe].subdomain is defined 
+
+- name: "{{ requested_recipe }} --> replace occurances of example.com within files in /var/data/config/{{ requested_recipe }}/ with {{ dns_domain }}"
+  replace:
+    path: "{{ item.path }}"
+    regexp: 'example.com'
+    replace: '{{ dns_domain }}' 
+  with_items: '{{ _config_files.files }}'
+
+- name: "{{ requested_recipe }} -> insert user-defined volumes for this recipe if configured"
+  lineinfile:
+    state: present
+    path: "/var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.yml"
+    firstmatch: yes
+    insertafter: '^\s+volumes:'
+    line: '      - {{ item }}'
+  with_items: "{{ combined_config[requested_recipe].volumes }}"  
+  when: 
+  - combined_config[requested_recipe].volumes is defined
+
+- name: "{{ requested_recipe }} -> insert ports section for this recipe if configured"
+  lineinfile:
+    state: present
+    path: "/var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.yml"
+    firstmatch: yes
+    insertbefore: '^\s+deploy:'
+    line: '    ports:' 
+  when: 
+  - combined_config[requested_recipe].ports is defined
+
+- name: "{{ requested_recipe }} -> insert user-defined port mappings for this recipe if configured"
+  lineinfile:
+    state: present
+    path: "/var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.yml"
+    firstmatch: yes
+    insertafter: '^\s+ports:'
+    line: '      - {{ item }}'
+  with_items: "{{ combined_config[requested_recipe].ports }}"  
+  when: 
+  - combined_config[requested_recipe].ports is defined
+
+- name: "{{ requested_recipe }} --> replace default subnet within in /var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.yml with user's chosen subnet"
+  replace:
+    path: "/var/data/config/{{ requested_recipe }}/{{ requested_recipe }}.yml"
+    regexp: 'subnet: 172\.16\.\d*\.0\/24'
+    replace: 'subnet: {{ combined_config[requested_recipe].subnet }}' 
+  when: 
+  - combined_config[requested_recipe].subnet is defined

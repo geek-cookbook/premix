@@ -1,0 +1,8 @@
+# Notes helpers
+notes:
+    
+    # A list of other charts to help with suggestions
+    otherCharts:
+        - name: Lidarr
+          url: https://geek-cookbook.funkypenguin.co.nz/recipes/autopirate/lidarr/
+    

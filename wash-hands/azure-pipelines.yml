@@ -1,0 +1,79 @@
+name: $(Build.BuildId)
+
+# Trigger on push to master specifically for this chart
+trigger:
+  branches:
+    include:
+    - dev
+  paths:
+    include:
+    - charts/wash-hands/*
+    
+pool:
+  vmImage: 'Ubuntu-16.04'
+
+variables:
+- group: funkypenguin-common
+- group: funkypenguin-wash-hands
+- name: projectName
+  value: wash-hands
+
+stages:
+
+- stage: prepare
+  jobs:
+  - job: preparejob
+
+    steps:
+
+    - task: HelmInstaller@0
+      displayName: 'Install Helm'
+      inputs:
+        helmVersion: 3.0.2
+
+    - bash: helm package --version $(build.buildId) --destination $(build.artifactStagingDirectory) $(system.defaultWorkingDirectory)/$(projectName)/helm-chart/$(projectName)
+      displayName: 'helm package'
+
+    - bash: az acr helm push -n $(registryServerName) -u $(registryLogin) -p $(registryPassword) $(build.artifactStagingDirectory)/$(projectName)-$(build.buildId).tgz
+      displayName: 'az acr helm push'
+      condition: and(succeeded(), eq(variables['build.sourceBranch'], 'refs/heads/master'))
+          
+
+- stage: Deploy_In_Dev # Deploy artifacts to the dev environment
+
+
+  jobs:
+  - deployment: deploy_to_cluster
+
+    environment: 'fp-aks-ae'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'latest'
+
+          - task: Bash@3
+            inputs:
+              targetType: 'inline'
+              script: 'helm repo add $(registryServerName) https://$(registryServerName)/helm/v1/repo --username $(registryLogin) --password $(registryPassword) && helm repo update'
+
+          - task: Bash@3
+            inputs:
+              targetType: 'inline'
+              script: 'echo helm repo add $(registryServerName) https://$(registryServerName)/helm/v1/repo --username $(registryLogin) --password $(registryPassword) && helm repo update'
+
+
+          - task: HelmDeploy@0
+            inputs:
+              connectionType: 'Azure Resource Manager'
+              azureSubscription: 'sp-fp-aks-ae-cicd'
+              azureResourceGroup: 'rg-fp-aks-ae'
+              kubernetesCluster: 'aks-fp-ae'
+              useClusterAdmin: true
+              namespace: '$(projectName)'
+              command: 'upgrade'
+              chartType: 'Name'
+              chartName: '$(registryServerName)/$(projectName)'
+              releaseName: '$(projectName)'

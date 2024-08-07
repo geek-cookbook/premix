@@ -1,0 +1,56 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: wallet
+  namespace: trtl
+  labels:
+    app: wallet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wallet
+  template:
+    metadata:
+      labels:
+        app: wallet
+    spec:
+      containers:
+        - image: funkypenguin/turtlecoind
+          imagePullPolicy: Always
+          resources:
+            requests:
+              memory: "350Mi"
+              cpu: "0.01"
+            limits:
+              memory: "400Mi"
+              cpu: "0.02"
+          name: wallet
+          command: [ "/usr/local/turtlecoin-ha/turtle-service" ]
+          args: [ "--config", "/config/wallet.conf" ] 
+          volumeMounts:
+            - name: wallet-volumeclaim
+              mountPath: /wallet
+            - name: wallet-conf
+              mountPath: /config
+      volumes:
+        - name: wallet-volumeclaim
+          persistentVolumeClaim:
+            claimName: wallet-volumeclaim
+        - name: wallet-conf
+          configMap:
+            name: wallet.conf         
+
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: wallet
+  namespace: trtl
+spec:
+  selector:
+    app: wallet
+  ports:
+  - protocol: TCP
+    port: 8070
+  clusterIP: None

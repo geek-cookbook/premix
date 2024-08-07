@@ -1,0 +1,127 @@
+version: '3.5'
+services:
+  db:
+    image: postgres:14-alpine
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', 'postgres']
+    volumes:
+      - /var/data/runtime/mastodon/postgres:/var/lib/postgresql/data    
+    environment:
+      - 'POSTGRES_HOST_AUTH_METHOD=trust'
+
+  redis:
+    image: redis:6-alpine
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+    volumes:
+      - /var/data/runtime/mastodon/redis:/data
+
+  # es:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:7.17.4
+  #   environment:
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m -Des.enforce.bootstrap.checks=true"
+  #     - "xpack.license.self_generated.type=basic"
+  #     - "xpack.security.enabled=false"
+  #     - "xpack.watcher.enabled=false"
+  #     - "xpack.graph.enabled=false"
+  #     - "xpack.ml.enabled=false"
+  #     - "bootstrap.memory_lock=true"
+  #     - "cluster.name=es-mastodon"
+  #     - "discovery.type=single-node"
+  #     - "thread_pool.write.queue_size=1000"
+  #   networks:
+  #      - internal
+  #   healthcheck:
+  #      test: ["CMD-SHELL", "curl --silent --fail localhost:9200/_cluster/health || exit 1"]
+  #   volumes:
+  #      - /var/data/runtime/mastodon/elasticsearch:/usr/share/elasticsearch/data
+  #   ulimits:
+  #     memlock:
+  #       soft: -1
+  #       hard: -1
+  #     nofile:
+  #       soft: 65536
+  #       hard: 65536
+  #   ports:
+  #     - '9200:9200'
+
+  web:
+    image: tootsuite/mastodon
+    env_file: /var/data/config/mastodon/mastodon.env
+    command: bash -c "rm -f /mastodon/tmp/pids/server.pid; bundle exec rails s -p 3000"
+    networks:
+      - internal
+      - traefik_public
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider --proxy=off localhost:3000/health || exit 1']
+    volumes:
+      - /var/data/mastodon:/mastodon/public/system
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv2
+        - "traefik.http.routers.mastodon.rule=Host(`mastodon.example.com`)"
+        - "traefik.http.routers.mastodon.entrypoints=https"
+        - "traefik.http.services.mastodon.loadbalancer.server.port=3000"
+
+  streaming:
+    image: tootsuite/mastodon
+    env_file: /var/data/config/mastodon/mastodon.env
+    command: node ./streaming
+    networks:
+      - internal
+      - traefik_public
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider --proxy=off localhost:4000/api/v1/streaming/health || exit 1']
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv2
+        - "traefik.http.routers.mastodon.rule=Host(`mastodon.example.com`) && PathPrefix(`/api/v1/streaming`))"
+        - "traefik.http.routers.mastodon.entrypoints=https"
+        - "traefik.http.services.mastodon.loadbalancer.server.port=3000"
+
+  sidekiq:
+    image: tootsuite/mastodon
+    env_file: /var/data/config/mastodon/mastodon.env
+    command: bundle exec sidekiq
+    networks:
+      - internal
+    volumes:
+      - /var/data/mastodon:/mastodon/public/system
+    healthcheck:
+      test: ['CMD-SHELL', "ps aux | grep '[s]idekiq\ 6' || false"]
+
+  ## Uncomment to enable federation with tor instances along with adding the following ENV variables
+  ## http_proxy=http://privoxy:8118
+  ## ALLOW_ACCESS_TO_HIDDEN_SERVICE=true
+  # tor:
+  #   image: sirboops/tor
+  #   networks:
+  #      - internal
+  #
+  # privoxy:
+  #   image: sirboops/privoxy
+  #   volumes:
+  #     - /var/data/mastodon/privoxy:/opt/config
+  #   networks:
+  #     - internal
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.9.0/24

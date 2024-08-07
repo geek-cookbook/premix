@@ -1,0 +1,58 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: miniflux
+  name: db
+  labels:
+    app: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - image: postgres:11
+          name: db
+# only uncomment these to get the container to run so that we can transfer files into the PV
+#          command: [ "/bin/sleep" ]
+#          args: [ "1h" ]
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          volumeMounts:
+            - name: miniflux-db
+              mountPath: /var/lib/postgresql/data
+          env:
+          - name: POSTGRES_USER
+            value: "miniflux"
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: miniflux-credentials
+                key: postgres-password.secret
+      volumes:
+        - name: miniflux-db
+          persistentVolumeClaim:
+            claimName: miniflux-db
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: db
+  namespace: miniflux
+spec:
+  selector:
+    app: db
+  ports:
+  - protocol: TCP
+    port: 5432
+  clusterIP: None

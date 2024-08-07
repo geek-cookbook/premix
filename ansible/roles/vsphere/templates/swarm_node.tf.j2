@@ -1,0 +1,42 @@
+# Create VMs
+resource "vsphere_virtual_machine" "{{ inventory_hostname_short }}" {
+
+  name             = "{{ inventory_hostname_short }}"
+  resource_pool_id = data.vsphere_compute_cluster.cluster.resource_pool_id
+  datastore_id     = data.vsphere_datastore.datastore.id
+
+  num_cpus = {{ vsphere_vm_cores }}
+  memory   = {{ vsphere_vm_ram }}
+  guest_id = "ubuntu64Guest"
+  wait_for_guest_net_timeout = 0
+
+  network_interface {
+    network_id = data.vsphere_network.network.id
+  }
+
+    cdrom {
+    client_device = true
+  }
+
+  disk {
+    label = "disk0"
+    size  = {{ vsphere_vm_disk0_size }}
+    unit_number = 0
+  }
+
+  disk {
+    label = "disk1"
+    size  = {{ vsphere_vm_disk1_size }}
+    unit_number = 1
+  }
+
+  clone {
+    template_uuid = "${data.vsphere_virtual_machine.template.id}"
+  }
+    extra_config = {
+    "guestinfo.metadata"          = base64encode(file("{{terraform_dir}}/{{ inventory_hostname_short }}.yaml"))
+    "guestinfo.metadata.encoding" = "base64"
+    "guestinfo.userdata"          = base64encode(file("{{terraform_dir}}/userdata.yaml"))
+    "guestinfo.userdata.encoding" = "base64"
+  }
+}

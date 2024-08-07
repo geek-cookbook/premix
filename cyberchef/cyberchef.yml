@@ -1,0 +1,26 @@
+version: "3.2" # https://docs.docker.com/compose/compose-file/compose-versioning/#version-3
+
+services:
+  cyberchef:
+    image: mpepping/cyberchef
+    env_file: /var/data/config/cyberchef/cyberchef.env
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:cyberchef.example.com
+        - traefik.port=8000     
+
+        # traefikv2
+        - "traefik.http.routers.cyberchef.rule=Host(`cyberchef.example.com`)"
+        - "traefik.http.routers.cyberchef.entrypoints=https"
+        - "traefik.http.services.cyberchef.loadbalancer.server.port=8000"           
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

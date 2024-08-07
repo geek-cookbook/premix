@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: searx
+  name: app
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - image: wonderfall/searx
+          name: app
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+  namespace: searx
+spec:
+  selector:
+    app: app
+  ports:
+  - protocol: TCP
+    port: 8888
+  clusterIP: None

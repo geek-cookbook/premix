@@ -1,0 +1,106 @@
+# - name: Add the 'actions-runner' sudo user
+#   user:
+#     name: actions-runner
+#     comment: GitHub Actions Runner
+#     uid: 1937       
+#   register: _result        
+#   until: _result.failed == false
+#   retries: 60 # retry X times  
+#   delay: 5     # pause for X sec b/w each call        
+
+
+- name: Ensure /home/actions-runner/.ansible and .ssh folders exists
+  file:
+    path: /home/actions-runner/{{ item }}
+    state: directory
+    owner: actions-runner
+    mode: 0700
+  with_items:
+  - .ssh
+  - .ansible
+
+- name: Upload SSH private key to /srv/actions-runner/.ssh/id_rsa
+  copy: 
+    src: id_rsa
+    dest: /home/actions-runner/.ssh/id_rsa
+    mode: '0600'
+    owner: actions-runner
+  
+- name: Ensure /opt/github-actions-runner exists
+  file:
+    path: /opt/github-actions-runner
+    state: directory
+    owner: actions-runner
+
+- name: Install kubectl {{ packages.kubectl.version }}
+  get_url:
+    url: https://dl.k8s.io/release/{{ packages.kubectl.version }}/bin/linux/amd64/kubectl
+    dest: /usr/local/bin
+    mode: 0755
+
+- name: Install kustomize {{ packages.kustomize.version }}
+  unarchive:
+    src: "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F{{ packages.kustomize.version }}/kustomize_{{ packages.kustomize.version }}_linux_amd64.tar.gz"
+    dest: /usr/local/bin/
+    copy: no
+    creates: /usr/local/bin/kustomize
+
+- name: Download GH actions runner
+  unarchive:
+    src: "https://github.com/actions/runner/releases/download/v{{ packages.github_actions_runner.version }}/actions-runner-linux-x64-{{ packages.github_actions_runner.version }}.tar.gz"
+    dest: /opt/github-actions-runner
+    copy: no
+
+- name: Ensure /opt/github-actions-runner ownership is still correct
+  file:
+    path: /opt/github-actions-runner
+    state: directory
+    owner: actions-runner
+
+- name: Check whether the runner already configured
+  stat: 
+    path: /opt/github-actions-runner/.credentials
+  register: _result
+
+- name: Configure runner for premix repo
+  command: "./config.sh --url {{ github_actions_runner_repo }} --token {{ github_actions_runner_token }} --unattended --replace"
+  become: yes
+  become_user: actions-runner
+  args:
+    chdir: /opt/github-actions-runner
+  when: _result.stat.exists == false      
+
+- name: Check whether the service is already installed
+  stat: 
+    path: "/etc/systemd/system/actions.runner.funkypenguin-geek-cookbook-premix.{{ inventory_hostname }}.service"
+  register: _result
+
+- name: Install action-runner service
+  command: ./svc.sh install actions-runner
+  args:
+    chdir: /opt/github-actions-runner
+  when: _result.stat.exists == false  
+
+- name: Ensure service is started
+  systemd:
+    name: "actions.runner.funkypenguin-geek-cookbook-premix.{{ inventory_hostname }}.service"
+    state: started
+
+- name: Install ansible ppa
+  apt_repository:
+    repo: ppa:ansible/ansible
+
+- name: Ensure permissions on /opt/github-actions-runner permit self-updating
+  file:
+    dest: /opt/github-actions-runner
+    owner: actions-runner
+    recurse: "yes"
+
+- name: Ensure ansible is installed
+  apt:
+    name: "{{ item }}"
+    state: latest 
+    update_cache: true
+  with_items:
+  - ansible
+  - docker

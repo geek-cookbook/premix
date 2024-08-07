@@ -1,0 +1,53 @@
+version: '3'
+
+services:
+  miniflux:
+    image: miniflux/miniflux:2.0.11
+    env_file: /var/data/config/miniflux/miniflux.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:miniflux.funkypenguin.co.nz
+        - traefik.port=8080
+        - traefik.docker.network=traefik_public
+
+  db:
+    env_file: /var/data/config/miniflux/miniflux.env
+    image: postgres:10.1
+    volumes:
+      - /var/data/runtime/miniflux/database:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - internal
+
+  db-backup:
+    image: postgres:10.1
+    env_file: /var/data/config/miniflux/miniflux-backup.env
+    volumes:
+      - /var/data/miniflux/database-dump:/dump
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        pg_dump -Fc > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.psql
+        ls -tr /dump/dump_*.psql | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.22.0/24

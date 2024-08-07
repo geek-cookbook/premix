@@ -1,0 +1,37 @@
+version: "3.2"
+
+services:
+  lazylibrarian:
+    image: lscr.io/linuxserver/lazylibrarian:latest
+    env_file: /var/data/config/lazylibrarian/lazylibrarian.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/lazylibrarian:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:lazylibrarian.example.com
+        - traefik.port=5299
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.lazylibrarian.rule=Host(`lazylibrarian.example.com`)"
+        - "traefik.http.routers.lazylibrarian.entrypoints=https"
+        - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
+        - "traefik.http.routers.lazylibrarian.middlewares=forward-auth"
+    networks:
+      - traefik_public
+      - autopiratev2_public
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

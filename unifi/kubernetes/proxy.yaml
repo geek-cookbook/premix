@@ -1,0 +1,74 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: unifi
+  name: proxy
+  labels:
+    app: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: proxy
+  template:
+    metadata:
+      labels:
+        app: proxy
+    spec:
+      containers:
+        - image: funkypenguin/oauth2_proxy
+          name: proxy
+          args: 
+            - --upstream=https://controller:8443
+            - --ssl-insecure-skip-verify=true
+            - --redirect-url=https://unifi.funkypenguin.co.nz
+            - --http-address=http://0.0.0.0:4180
+            - --email-domain=funkypenguin.co.nz
+            - --provider=github
+#            - --authenticated-emails-file=/config/authenticated-emails.txt
+            - --ssl-insecure-skip-verify
+#          resources:
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          env:
+          - name: OAUTH2_PROXY_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: unifi-credentials
+                key: oauth2_proxy_client_id.secret
+          - name: OAUTH2_PROXY_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: unifi-credentials
+                key: oauth2_proxy_client_secret.secret
+          - name: OAUTH2_PROXY_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: unifi-credentials
+                key: oauth2_proxy_cookie_secret.secret
+          volumeMounts:
+            - name: authenticated-emails-txt
+              mountPath: /config/authenticated-emails-txt
+              subPath: authenticated-emails.txt
+      volumes:
+        - name: authenticated-emails-txt
+          configMap:
+            name: authenticated-emails.txt
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: proxy
+  namespace: unifi
+spec:
+  selector:
+    app: proxy
+  ports:
+  - protocol: TCP
+    port: 4180
+  clusterIP: None

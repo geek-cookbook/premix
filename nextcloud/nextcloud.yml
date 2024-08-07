@@ -1,0 +1,113 @@
+version: "3.0"
+
+services:
+  nextcloud:
+    image: nextcloud
+    env_file: /var/data/config/nextcloud/nextcloud.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+          # traefik common
+          - traefik.enable=true
+          - traefik.docker.network=traefik_public
+
+          # traefikv1
+          - traefik.frontend.rule=Host:nextcloud.example.com
+          - traefik.frontend.redirect.permanent=true
+          - traefik.frontend.redirect.regex=https://(.*)/.well-known/(card|cal)dav
+          - traefik.frontend.redirect.replacement=https://$$1/remote.php/dav/
+          - traefik.port=80     
+
+          # traefikv2
+          - "traefik.http.routers.nextcloud.rule=Host(`nextcloud.example.com`)"
+          - "traefik.http.services.nextcloud.loadbalancer.server.port=80"
+          - "traefik.http.middlewares.nextcloud-redirectregex.redirectRegex.permanent=true"
+          - "traefik.http.middlewares.nextcloud-redirectregex.redirectregex.regex=^https://(.*)/.well-known/(card|cal)dav"
+          - "traefik.http.middlewares.nextcloud-redirectregex.redirectregex.replacement=https://$$1/remote.php/dav/"
+          - "traefik.http.routers.nextcloud.middlewares=nextcloud-redirectregex@docker"
+
+    volumes:
+      - /var/data/nextcloud/html:/var/www/html
+      - /var/data/nextcloud/apps:/var/www/html/custom_apps
+      - /var/data/nextcloud/config:/var/www/html/config
+      - /var/data/nextcloud/data:/var/www/html/data
+
+  db:
+    image: mariadb:10.5
+    env_file: /var/data/config/nextcloud/nextcloud.env
+    networks:
+      - internal
+    volumes:
+      - /var/data/runtime/nextcloud/db:/var/lib/mysql
+
+  db-backup:
+    image: mariadb:10.5
+    env_file: /var/data/config/nextcloud/nextcloud-backup.env
+    volumes:
+      - /var/data/nextcloud/database-dump:/dump
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        mysqldump -h db --all-databases | gzip -c > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.sql.gz
+        ls -tr /dump/dump_*.sql.gz | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+
+  # potential advanced use-case for backups
+  # backup:
+  #   image: tecnativa/duplicity
+  #   env_file: /var/data/config/nextcloud/nextcloud-backup.env
+  #   volumes:
+  #     - /etc/localtime:/etc/localtime:ro
+  #     - /var/data:/var/data:ro
+  #     - /var/data/duplicity/tmp:/tmp
+  #     - /var/data/duplicity/archive/duplicity:/archive
+  #     - /var/data/config/nextcloud/include.txt:/include.txt:ro
+  #     - /var/data/config/nextcloud/exclude.txt:/exclude.txt:ro
+
+  redis:
+    image: redis:alpine
+    networks:
+      - internal
+    volumes:
+      - /var/data/runtime/nextcloud/redis:/data
+
+  cron:
+    image: nextcloud
+    volumes:
+    - /var/data/nextcloud/html:/var/www/html
+    - /var/data/nextcloud/apps:/var/www/html/custom_apps
+    - /var/data/nextcloud/config:/var/www/html/config
+    - /var/data/nextcloud/data:/var/www/html/data
+    user: www-data
+    networks:
+      - internal
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+        trap "break;exit" SIGHUP SIGINT SIGTERM
+        while [ ! -f /var/www/html/config/config.php ]; do
+          sleep 1
+        done
+        while true; do
+          php -f /var/www/html/cron.php
+          sleep 15m
+        done
+      EOF'
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.12.0/24
+

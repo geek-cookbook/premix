@@ -1,0 +1,14 @@
+{{ include "funkycore.notes.header" . }}
+
+{{ include "funkycore.notes.chartSuggestion" . }}
+
+{{ if .Values.ingress.enabled }}
+Find your new service at:
+http{{ if .Values.ingress.tls }}s{{ end }}://{{ .Values.ingress.host }}{{ .Values.ingress.path }}
+{{ end }}
+
+Your service has an internal address of
+{{ printf "%s.%s.svc.cluster.local" .Values.names.service .Release.Namespace }}
+(You put this in other charts to talk to it!)
+
+{{ include "funkycore.notes.footer" . }}

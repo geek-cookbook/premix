@@ -1,0 +1,29 @@
+version: "3.2" # https://docs.docker.com/compose/compose-file/compose-versioning/#version-3
+
+services:
+  funkwhale:
+    image: funkwhale/all-in-one:1.0.1
+    env_file: /var/data/config/funkwhale/funkwhale.env
+    volumes:
+      - /var/data/funkwhale/:/data/
+      # - /path/to/your/music/dir:/music:ro
+    deploy:
+      labels:
+        # traefik common
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_public"
+
+        # traefikv1
+        - "traefik.frontend.rule=Host:funkwhale.example.com"
+        - "traefik.port=80     "
+
+        # traefikv2
+        - "traefik.http.routers.funkwhale.rule=Host(`funkwhale.example.com`)"
+        - "traefik.http.routers.funkwhale.entrypoints=https"
+        - "traefik.http.services.funkwhale.loadbalancer.server.port=80" 
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

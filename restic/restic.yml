@@ -1,0 +1,22 @@
+version: "3.2"
+
+services:
+  backup:
+    image: mazzolino/restic
+    env_file: /var/data/config/restic/restic-backup.env
+    hostname: docker
+    volumes:
+      - /var/data/restic/restic.exclude:/restic.exclude
+      - /var/data:/data:ro
+    deploy:
+      labels:
+        - "traefik.enabled=false"
+
+  prune:
+    image: mazzolino/restic
+    env_file: /var/data/config/restic/restic-prune.env
+    hostname: docker
+    deploy:
+      labels:
+        - "traefik.enabled=false"
+

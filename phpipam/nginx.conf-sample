@@ -1,0 +1,16 @@
+upstream app-upstream {
+    server app:80;
+}
+
+server {
+    listen 80;
+    server_name ~.;
+
+    # Just redirect everything to the upstream
+    # Yes, it's embarassing. We are just a mechanism to strip an AUTH header :(
+    location ^~ / {
+        proxy_pass http://app-upstream;
+	proxy_set_header       Authorization "";
+    }
+
+}

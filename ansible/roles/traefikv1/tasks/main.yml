@@ -1,0 +1,26 @@
+- name: Import docker-stack role
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: traefikv1
+
+- name: ensure /var/data/traefikv1/traefik.log exists
+  file:
+    path: /var/data/traefikv1/traefik.log
+    state: touch
+
+- name: ensure /var/data/traefikv1/acme.json exists
+  file:
+    path: /var/data/traefikv1/acme.json
+    state: touch
+    mode: '600'
+
+- name: update dnsProvider (not ideal, since the stack has already deployed)
+  lineinfile:
+    path: "/var/data/config/traefikv1/traefikv1.toml"
+    regexp: '^dnsProvider ='
+    line: 'dnsProvider = "{{ combined_config.traefikv1.dns_provider }}"'
+  notify:
+    - "stop traefikv1 stack"
+    - "start traefikv1 stack"
+

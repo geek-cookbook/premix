@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  unifi:
+    image: jacobalberty/unifi:latest
+    volumes:
+      - /var/data/runtime/unifi/:/var/lib/unifi
+      - /var/data/unifi/backup/:/var/lib/unifi/backup/autobackup
+      - /var/data/unifi/logs:/var/log/unifi
+    networks:
+      - traefik_public
+    ports:
+      - 8080:8080
+      - 8443:8343
+      - 8880:8880
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:unifi.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=8443
+        - traefik.protocol=https
+
+networks:
+  traefik_public:
+    external: true

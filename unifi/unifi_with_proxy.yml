@@ -1,0 +1,49 @@
+version: '3'
+
+services:
+  unifi:
+    image: lscr.io/linuxserver/unifi
+    volumes:
+     - /var/data/runtime/unifi/:/config
+     - /var/data/unifi/backup/:/var/lib/unifi/backup/autobackup
+     - /var/data/unifi/logs:/var/log/unifi
+    networks:
+    - internal
+    ports:
+    - 8080:8080
+    - 8443:8443
+    - 8880:8880
+
+  proxy:
+    image: funkypenguin/oauth2_proxy
+    env_file : /var/data/config/unifi/unifi.env
+    # Note that service discovery only works on the _first_ network defined
+    dns_search: randmonesstowkraronudbug.com
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:unifi.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/unifi/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -upstream=https://unifi:8443
+      -ssl-insecure-skip-verify=true
+      -redirect-url=https://unifi.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -email-domain=funkypenguin.co.nz
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+      -ssl-insecure-skip-verify
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.7.0/24

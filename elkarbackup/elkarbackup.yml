@@ -1,0 +1,37 @@
+version: "3"
+
+services:
+  db:
+    image: mariadb:10
+    env_file: /var/data/config/elkarbackup/elkarbackup.env
+    networks:
+      - internal
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/data/runtime/elkarbackup3/db:/var/lib/mysql
+
+  elkarbackup:
+    image: elkarbackup/elkarbackup:1.3.0-apache
+    env_file: /var/data/config/elkarbackup/elkarbackup.env
+    networks:
+      - internal
+      - traefik_public
+    volumes:
+       - /etc/localtime:/etc/localtime:ro
+       - /var/data/elkarbackup/backups:/app/backups
+       - /var/data/elkarbackup/uploads:/app/uploads
+       - /var/data/elkarbackup/sshkeys:/app/.ssh
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:elkarbackup.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=80
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.36.0/24

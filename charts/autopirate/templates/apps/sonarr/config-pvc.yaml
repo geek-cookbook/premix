@@ -1,0 +1,23 @@
+{{ $app := .Values.apps.sonarr }} {{ $fullname := printf "%s-%s-%s" .Release.Name $app.name .Chart.Name | trunc 63 | trimSuffix "-" }}
+{{- if $app.enable  -}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ $fullname }}
+  labels:
+  {{- include "autopirate.labels" . | indent 4 }}  
+  {{- range $key, $value := .Values.claims.config.labels }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  annotations:
+    {{- range $key, $value := .Values.claims.config.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.claims.config.accessMode }}
+  storageClassName: {{ .Values.claims.config.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.claims.config.size }}
+{{- end -}}

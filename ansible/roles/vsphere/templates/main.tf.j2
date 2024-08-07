@@ -1,0 +1,15 @@
+terraform {
+  required_providers {
+    vsphere = {
+      source = "hashicorp/vsphere"
+      version = "1.24.3"
+    }
+  }
+}
+
+provider "vsphere" {
+    vsphere_server = "{{ vsphere_host_name }}"
+    user = "{{ vsphere_host_username }}"
+    password = "{{ vcenter_host_password }}"
+    allow_unverified_ssl = true
+}

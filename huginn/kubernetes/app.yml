@@ -1,0 +1,90 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: huginn
+  name: app
+  labels:
+    app: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - image: huginn/huginn
+          name: app
+          resources:
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          env:
+          - name: SMTP_DOMAIN
+            value: "huginn.funkypenguin.co.nz"
+          - name: SMTP_SERVER
+            value: "smtp.mailgun.org"
+          - name: SMTP_PORT
+            value: "587"
+          - name: SMTP_USER_NAME
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: smtp_user_name.secret
+          - name: SMTP_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: smtp_password.secret
+          - name: SMTP_AUTHENTICATION
+            value: "plain"
+          - name: SMTP_ENABLE_STARTTLS_AUTO
+            value: "true"
+          - name: POSTGRES_PORT_5432_TCP_ADDR
+            value: "db"
+          - name: POSTGRES_PORT_5432_TCP_PORT
+            value: "5432"
+          - name: DATABASE_USERNAME
+            value: "huginn"
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: postgres_password.secret
+          - name: DATABASE_ADAPTER
+            value: "postgresql"
+          - name: INVITATION_CODE
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: invitation_code.secret
+          - name: TWITTER_OAUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: twitter-api-key.secret
+          - name: TWITTER_OAUTH_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: twitter-api-secret.secret
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: app
+  namespace: huginn
+spec:
+  selector:
+    app: app
+  ports:
+  - protocol: TCP
+    port: 3000
+  clusterIP: None

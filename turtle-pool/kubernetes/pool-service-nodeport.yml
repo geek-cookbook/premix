@@ -1,0 +1,22 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: pool-mining-nodeport
+  namespace: trtl
+spec:
+  selector:
+    app: pool 
+  type: NodePort
+  ports:
+  - name: pool-vardiff-low
+    port: 3333
+    protocol: TCP
+    nodePort : 30333
+  - name: pool-vardiff-med
+    port: 5555
+    protocol: TCP
+    nodePort : 30555
+  - name: pool-vardiff-hard
+    port: 7777
+    protocol: TCP
+    nodePort : 30777

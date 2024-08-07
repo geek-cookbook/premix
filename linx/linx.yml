@@ -1,0 +1,30 @@
+version: "3.2" # https://docs.docker.com/compose/compose-file/compose-versioning/#version-3
+
+services:
+  linx:
+    image: andreimarcu/linx-server
+    env_file: /var/data/config/linx/linx.env
+    command: -config /linx.conf
+    volumes:
+      - /var/data/linx/:/files/
+      - /var/data/config/linx/linx.conf:/linx.conf:ro
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:linx.example.com
+        - traefik.port=8080     
+
+        # traefikv2
+        - "traefik.http.routers.linx.rule=Host(`linx.example.com`)"
+        - "traefik.http.routers.linx.entrypoints=https"
+        - "traefik.http.services.linx.loadbalancer.server.port=8080"           
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

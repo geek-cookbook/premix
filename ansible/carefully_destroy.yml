@@ -1,0 +1,10 @@
+---
+# If we have any proxmox hosts, then use them to create the necessary VMs
+- hosts: proxmox_servers:proxmox_vms
+  gather_facts: no
+  become: yes
+
+  tasks: 
+
+  # Destroy proxmox VMs
+  - { import_role: { name: destroy-proxmox }, tags: [ destroy-proxmox ], become: no } 

@@ -1,0 +1,13 @@
+# Unless more-specific rules are added, all PRs require @funkypenguin's approval ;)
+*                               @funkypenguin
+
+# Komga
+/komga/                         @dskaggs
+/ansible/roles/komga/           @dskaggs
+
+# Paperless
+/paperless/                     @dskaggs
+/ansible/roles/paperless/       @dskaggs
+
+# Podgrab
+/podgrab                        @NanoSymmetry

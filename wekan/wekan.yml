@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+
+  db:
+    image: mongo:latest
+    command: mongod --smallfiles --oplogSize 128
+    networks:
+      - internal
+    volumes:
+      - /var/data/runtime/wekan/database:/data/db
+
+  db-backup:
+    image: mongo:latest
+    env_file: /var/data/config/wekan/wekan.env
+    volumes:
+      - /var/data/wekan/database-dump:/dump
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        mongodump -h db --gzip --archive=/dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.mongo.gz
+        ls -tr /dump/dump_*.mongo.gz | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+ 
+  proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/wekan/wekan.env
+    networks:
+      - traefik_public
+      - internal
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:wekan.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/wekan/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://wekan:80
+      -redirect-url=https://wekan.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -email-domain=funkypenguin.co.nz
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  wekan:
+    image: wekanteam/wekan:latest
+    networks:
+      - internal
+    env_file: /var/data/config/wekan/wekan.env
+    environment:
+      - MONGO_URL=mongodb://db:27017/wekan
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.5.0/24

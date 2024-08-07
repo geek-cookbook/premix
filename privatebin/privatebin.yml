@@ -1,0 +1,40 @@
+version: '3'
+
+services:
+  app:
+    image: privatebin/nginx-fpm-alpine:1.2.1
+    volumes:
+      - /var/data/privatebin:/srv/data
+    networks:
+      - internal
+      
+  proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/privatebin/privatebin.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:privatebin.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/privatebin/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://app:80
+      -redirect-url=https://privatebin.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.41.0/24
+

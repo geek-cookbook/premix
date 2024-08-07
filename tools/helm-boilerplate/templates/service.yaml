@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.names.service }}
+  labels:
+{{ include "<CHARTNAME>.labels" . | indent 4 }}
+spec:
+  ports:
+  - port: {{ .Values.app.service.internalPort }}
+    protocol: TCP
+    name: {{ .Values.app.service.name }}
+  selector:
+    app: {{ .Values.app.labels.app }}

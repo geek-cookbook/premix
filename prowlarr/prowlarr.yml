@@ -1,0 +1,37 @@
+version: "3.2"
+
+services:
+  prowlarr:
+    image: lscr.io/linuxserver/prowlarr:nightly
+    env_file: /var/data/config/prowlarr/prowlarr.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/prowlarr:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:prowlarr.example.com
+        - traefik.port=9696
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.example.com`)"
+        - "traefik.http.routers.prowlarr.entrypoints=https"
+        - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+        - "traefik.http.routers.prowlarr.middlewares=forward-auth"
+    networks:
+      - traefik_public
+      - autopiratev2_public 
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

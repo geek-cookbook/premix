@@ -1,0 +1,41 @@
+[global]
+  checkNewVersion = true
+
+# Enable the Dashboard
+[api]
+  dashboard = true
+
+# Write out Traefik logs
+[log]
+  level = "INFO"
+  filePath = "/traefik.log"
+
+[entryPoints.http]
+  address = ":80"
+  # Redirect to HTTPS (why wouldn't you?)
+  [entryPoints.http.http.redirections.entryPoint]
+    to = "https"
+    scheme = "https"
+
+[entryPoints.https]
+  address = ":443"
+  [entryPoints.https.http.tls]
+    certResolver = "main"
+
+# Let's Encrypt
+[certificatesResolvers.main.acme]
+  email = "batman@example.com"
+  storage = "acme.json"
+  # uncomment to use staging CA for testing
+  # caServer = "https://acme-staging-v02.api.letsencrypt.org/directory"
+  [certificatesResolvers.main.acme.dnsChallenge]
+    provider = "route53"
+  # Uncomment to use HTTP validation, like a caveman!
+  # [certificatesResolvers.main.acme.httpChallenge]
+  #  entryPoint = "http"    
+
+# Docker Traefik provider
+[providers.docker]
+  endpoint = "unix:///var/run/docker.sock"
+  swarmMode = true
+  watch = true

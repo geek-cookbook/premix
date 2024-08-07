@@ -1,0 +1,19 @@
+{{ $app := .Values.apps.sabnzbd }} {{ $fullname := printf "%s-%s-%s" .Release.Name $app.name .Chart.Name | trunc 63 | trimSuffix "-" }}
+{{- if $app.enable  -}}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ $fullname }}
+data:
+    bootstrap: |-
+        #!/usr/bin/with-contenv bash
+
+        CONFIGFILE=/config/sabnzbd.ini
+
+        echo "[cfg-bootstrap] Modifying config ($CONFIGFILE)"
+
+        sed -i 's/host_whitelist =[\s\S]*$/&{{ $app.ingress.host }}/g' $CONFIGFILE
+        echo "[cfg-bootstrap] Added {{ $app.ingress.host }} to host whitelist"
+    
+
+{{- end -}}

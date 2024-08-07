@@ -1,0 +1,15 @@
+name: on-pr-validate-entire-deployment
+# This action should only be called on a pull request against the master branch (allows WIP pushes without triggering CI)
+on: 
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-playbook:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+    - name: deploy 
+      run: | 
+        cd ansible
+        ANSIBLE_CONFIG=ansible-ci.cfg ansible-playbook -i hosts.ci deploy.yml --skip-tags=proxmox -u actions-runner -e ci_validation=true

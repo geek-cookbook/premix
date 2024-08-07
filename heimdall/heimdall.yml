@@ -1,0 +1,33 @@
+version: "3.2"
+
+services:
+  heimdall:
+    image: lscr.io/linuxserver/heimdall:latest
+    env_file: /var/data/config/heimdall/heimdall.env
+    volumes:
+      - /var/data/heimdall:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:heimdall.example.com
+        - traefik.port=80
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.heimdall.rule=Host(`heimdall.example.com`)"
+        - "traefik.http.routers.heimdall.entrypoints=https"
+        - "traefik.http.services.heimdall.loadbalancer.server.port=80"
+        - "traefik.http.routers.heimdall.middlewares=forward-auth"
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

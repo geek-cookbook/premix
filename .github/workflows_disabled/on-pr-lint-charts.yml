@@ -1,0 +1,39 @@
+name: Lint and Test Charts
+
+on: 
+  pull_request:
+    paths:
+      - 'charts/**.yaml'
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+          
+      - name: Run chart-testing (lint)
+        id: lint
+        uses: HexF/chart-testing-action@master
+        env:
+          CT_CHART_REPOS: "premix=https://${{ secrets.CR_TOKEN }}@raw.githubusercontent.com/funkypenguin/geek-cookbook-premix/helm-charts/ bitnami=https://charts.bitnami.com/bitnami stable=https://kubernetes-charts.storage.googleapis.com/ fairwinds=https://charts.fairwinds.com/stable jetstack=https://charts.jetstack.io loki=https://grafana.github.io/loki/charts kube-eagle=https://raw.githubusercontent.com/cloudworkz/kube-eagle-helm-chart/master"
+        with:
+          # sadly, can't use this yet until chart-testing-action updates to v2
+          image: quay.io/helmpack/chart-testing:v3.0.0-beta.1
+          config: .ci/ct-config.yaml
+          command: lint
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.0.0-alpha.3
+        with:
+          install_local_path_provisioner: true
+        # Only build a kind cluster if there are chart changes to test.
+        if: steps.lint.outputs.changed == 'true'
+
+      - name: Run chart-testing (install)
+        uses: HexF/chart-testing-action@master
+        env:
+          CT_CHART_REPOS: "premix=https://${{ secrets.CR_TOKEN }}@raw.githubusercontent.com/funkypenguin/geek-cookbook-premix/helm-charts/ bitnami=https://charts.bitnami.com/bitnami stable=https://kubernetes-charts.storage.googleapis.com/ fairwinds=https://charts.fairwinds.com/stable jetstack=https://charts.jetstack.io loki=https://grafana.github.io/loki/charts kube-eagle=https://raw.githubusercontent.com/cloudworkz/kube-eagle-helm-chart/master"
+        with:
+          command: install
+          config: .ci/ct-config.yaml

@@ -1,0 +1,53 @@
+version: '3'
+
+services:
+    db:
+      image: postgres:latest
+      env_file: /var/data/config/ttrss/ttrss.env
+      volumes:
+        - /var/data/runtime/ttrss/database:/var/lib/postgresql/data
+        - /etc/localtime:/etc/localtime:ro
+      networks:
+        - internal
+
+    app:
+      image: funkypenguin/docker-ttrss:fever-api-plugin
+      env_file: /var/data/config/ttrss/ttrss.env
+      volumes:
+        - /etc/localtime:/etc/localtime:ro
+      deploy:
+        labels:
+          - traefik.frontend.rule=Host:ttrss.funkypenguin.co.nz
+          - traefik.docker.network=traefik
+          - traefik.port=8080
+      networks:
+        - internal
+        - traefik
+
+    db-backup:
+      image: postgres:latest
+      env_file: /var/data/config/ttrss/ttrss.env
+      volumes:
+        - /var/data/ttrss/database-dump:/dump
+        - /etc/localtime:/etc/localtime:ro
+      entrypoint: |
+        bash -c 'bash -s <<EOF
+        trap "break;exit" SIGHUP SIGINT SIGTERM
+        sleep 2m
+        while /bin/true; do
+          pg_dump -Fc > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.psql
+          ls -tr /dump/dump_*.psql | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+          sleep $$BACKUP_FREQUENCY
+        done
+        EOF'
+      networks:
+        - internal
+
+networks:
+  traefik:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.4.0/24

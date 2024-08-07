@@ -1,0 +1,662 @@
+# The Ansible roles allow you to override certain aspects of the environment generation and recipe deployment.
+
+# This section describes options you can set in your group_vars/<your username>/main.yml to customize your Proxmox VM environment
+# proxmox_vm_ram: 4096                                  # How much RAM to give each VM
+# proxmox_vm_cores: 2                                   # How many processors to give each VM
+# proxmox_vm_network_bridge: vmbr0                      # Which network to attach to each VM
+# proxmox_vm_vlan_tag: 8                                # VLAN tag to assign to each VM. Comment out to use no VLAN
+# proxmox_vm_disk0_size: 30G                            # Size of the primary (system) disk on each VM (append M for megabytes, G for Gigabytes, T for Terabytes)
+# proxmox_vm_disk1_size: 50G                            # Size of the secondary (data) disk on each VM (append M for megabytes, G for Gigabytes, T for Terabytes)
+# proxmox_storage: pve2                                 # Which Proxmox storage
+# proxmox_vlan_gateway: 192.168.38.1                    # Network gateway for the VM network adapter
+# terraform_dir: ~/.terraform/funky-penguins-are-funky  # Directory to store the generated Terraform files
+# admin_ssh_user: <your-user-name>                      # User to be created on each VM
+# admin_ssh_key: <your-public-key>                      # Your *public* SSH key to be installed on the VM for the admin_ssh_user account
+# proxmox_host_name: <server-name>                      # Name of the proxmox host that commands will be run against
+# proxmox_host_username: root@pam                       # Proxmox user name for running commands
+
+# This section describes options you can set in your group_vars/<your username>/main.yml to customize your vSphere VM environment
+# vsphere_datacenter: dc1
+# vsphere_datastore: datastore1
+# vsphere_compute_cluster: your_vsphere_cluster
+# vsphere_network: your_vsphere_portgroup
+# vsphere_template_folder: vm_template_folder
+# vsphere_template_name: vm_template_name
+# vsphere_vm_ram: 4096                                  # How much RAM to give each VM
+# vsphere_vm_cores: 2                                   # How many processors to give each VM
+# vsphere_vm_disk0_size: 10G                            # Size of the primary (system) disk on each VM (append M for megabytes, G for Gigabytes, T for Terabytes)
+# vsphere_vm_disk1_size: 60G                            # Size of the secondary (data) disk on each VM (append M for megabytes, G for Gigabytes, T for Terabytes)
+# vsphere_vlan_gateway: 192.168.38.1                    # Network gateway for the VM network adapter
+# vsphere_dns_server: 8.8.8.8 #Set to your DNS server
+# terraform_dir: ~/.terraform/funky-penguins-are-funky  # Directory to store the generated Terraform files
+# admin_ssh_user: <your-user-name>                      # User to be created on each VM
+# admin_ssh_key: <your-public-key>                      # Your *public* SSH key to be installed on the VM for the admin_ssh_user account
+# vsphere_host_name: <server-name>                      # Name of the vsphere host that commands will be run against
+# vsphere_host_username: administrator@vsphere.local    # vsphere user name for running commands
+
+
+# These values are supplied by default using vars/01_fake_vault.yml, and hopefully overridden
+# by your own vars/vault.yml (encrypted)
+
+proxmox_host_password: "{{ vault_proxmox_host_password }}"
+vcenter_host_password: "{{ vault_vcenter_host_password }}"
+ceph_dashboard_username: "{{ vault_ceph_dashboard_username }}"
+ceph_dashboard_password: "{{ vault_ceph_dashboard_password }}"
+github_flux_token: "{{ vault_github_flux_token }}"
+
+# Set this value to your DNS domain - it's used to generate URLs for the various recipes, such as "radarr.batman.com", "sabnzbd.batman.com", etc
+dns_domain: example.com
+
+# This is a regex
+ceph_target_disk: "sdb"
+
+# keepalived settings
+keepalived_virtual_ips: 192.168.38.100
+keepalived_unicast_peers: 
+  - 192.168.38.101
+  - 192.168.38.102
+  - 192.168.38.103
+
+# The user needs to set these in their own config if they want to log into DockerHub and avoid ratelimits
+docker_hub_username:
+docker_hub_password: 
+docker_hub_email:
+
+# This section describes options you can use to override various recipe settings.
+# These overrides should be placed inside the "recipe_config" section of your group_vars/<your username>/main.yml file
+# under a node that is the name of the recipe (see recipe_default_config below for example)
+# They will be merged with the "recipe_default_config" below and override any settings that exist there
+
+# subdomain: <alternate-subdomain>  # Overrides the default URL that you use to access a recipe 
+                                    # (eg: requests.example.com instead of the default ombi.example.com)
+# subnet: 172.16.200.0/24           # Override the default subnet as defined in the recipe YAML config file
+# volumes:                          # Allows you to specify additional volumes to be mounted in the container
+#   - "/var/data/test1:/test1"      # Can be local directories or network volumes mounted to a local directory
+#   - "/var/data/test2:/test2"      # NOTE: Directories MUST exist or the stack will fail to deploy
+# ports:                            # Allows you to specify ports to be published. This can aid in accessing services on the local nework
+#   - 8000:80                       # without going through the reverse proxy and (optional) forward auth step
+# env:                              # Allows you to override the values in the environment file for the recipe
+  # AWS_ACCESS_KEY_ID: "{{ vault_config.traefik.aws_access_key_id }}"         # This example illustrates how to keep secrets in ansible-vault
+  # AWS_SECRET_ACCESS_KEY: "{{ vault_config.traefik.aws_secret_access_key }}" # This example illustrates how to keep secrets in ansible-vault
+  # AWS_REGION: ""                                                            # It's also OK to have a blank value                                
+
+k3s_server_token: change-me-if-you-care
+
+# Set this to the path of your flux repo, which can be cloned into the flux-repo folder for ease of use
+flux_repo_path: ../my-flux-repo/
+
+recipe_config: 
+  # this_dictionary_intentionally_left_blank: # This exists so that the user can override recipe_defaults in another vars file
+
+# Default values go here. Don't change these, create your own "recipe_config" dictionary in your group_vars/<your username>/main.yml file
+recipe_default_config:
+  ceph:
+    enabled: true
+  keepalived:
+    enabled: true
+  traefikv1:
+    enabled: false
+    dns_provider: route53
+  traefikv2:
+    dns_provider: route53
+    enabled: true
+  traefik: # used for the kubernetes role - we don't bother with traefikv1
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: traefik
+    helm_chart_name: traefik
+    helm_chart_repo: traefik
+    helm_chart_repo_url: https://helm.traefik.io/traefik
+    helm_chart_version: 10.x.x        
+  traefik-forward-auth:
+    env:
+      DEFAULT_PROVIDER: oidc
+      PROVIDERS_OIDC_CLIENT_ID: foo
+      PROVIDERS_OIDC_CLIENT_SECRET: bar
+      PROVIDERS_OIDC_ISSUER_URL: https://dex.example.com
+      SECRET: imtoosexyformyshorts
+      AUTH_HOST: auth.example.com
+      COOKIE_DOMAIN: example.com
+  audiobookshelf:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/audiobookshelf/config     
+      mkdir -p /var/data/audiobookshelf/metadata
+  autopiratev2:
+    enabled: false
+    stacked_recipes: # Use this to "stack" a recipe by combining individual recipes into one
+    - bazarr
+    - bazarr4k
+    - headphones
+    - jackett
+    - lidarr
+    - mylar
+    - nzbget
+    - nzbhydra
+    - ombi
+    - oscarr
+    - prowlarr
+    - radarr
+    - radarr4k
+    - rtorrent
+    - sabnzbd
+    - sonarr
+    - sonarr4k
+  # ESSENTIALS: Don't change these, create your own "recipe_config" dictionary in your group_vars/<your username>/main.yml file
+  cert_manager:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: cert-manager
+    helm_chart_name: cert-manager
+    helm_chart_repo: cert-manager
+    helm_chart_repo_url: https://charts.jetstack.io
+    helm_chart_version: 1.x.x
+  external_dns:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: external-dns
+    helm_chart_name: external-dns
+    helm_chart_repo: bitnami
+    helm_chart_repo_url: https://charts.bitnami.com/bitnami
+    helm_chart_version: 6.x.x
+  metallb_system:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: metallb-system
+    helm_chart_name: metallb
+    helm_chart_repo: metallb
+    helm_chart_repo_url: https://metallb.github.io/metallb
+    helm_chart_version: 0.x.x
+  podinfo:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: podinfo
+    helm_chart_name: podinfo
+    helm_chart_repo: podinfo
+    helm_chart_repo_url: https://stefanprodan.github.io/podinfo
+    helm_chart_version: 6.x.x
+  rook_ceph:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: rook-ceph
+    helm_chart_name: rook-ceph
+    helm_chart_repo: rook-release
+    helm_chart_repo_url: https://charts.rook.io/release
+    helm_chart_version: 1.9.x
+    kustomization:
+      health_check_crds:
+      - cephblockpools.ceph.rook.io    
+  rook_ceph_cluster:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: rook-ceph
+    helm_chart_name: rook-ceph-cluster
+    helm_chart_repo: rook-release
+    helm_chart_repo_url: https://charts.rook.io/release
+    helm_chart_version: 1.9.x
+    kustomization:
+      depends_on:
+      - rook-ceph
+  sealed_secrets:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: sealed-secrets
+    helm_chart_name: sealed-secrets
+    helm_chart_repo: bitnami
+    helm_chart_repo_url: https://charts.bitnami.com/bitnami
+    helm_chart_version: 1.x.x
+  secret_replicator:
+    enabled: true
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: secret-replicator
+    helm_chart_name: secret-replicator
+    helm_chart_repo: kiwigrid
+    helm_chart_repo_url: https://kiwigrid.github.io
+    helm_chart_version: 0.6.x
+  nfs_provisioner:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: nfs-provisioner
+    helm_chart_name: nfs-subdir-external-provisioner
+    helm_chart_repo: nfs-provisioner
+    helm_chart_repo_url: https://kubernetes-sigs.github.io/nfs-subdir-external-provisioner/
+    helm_chart_version: 4.x.x
+  # RECIPES: Don't change these, create your own "recipe_config" dictionary in your group_vars/<your username>/main.yml file
+  authelia:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: authelia
+    helm_chart_name: authelia
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 11.x.x
+  archivy:
+    enabled: false
+  bazarr: 
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: bazarr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 10.x.x
+  bazarr4k:
+    enabled: false
+  bitwarden:
+    enabled: false
+  calibre_web:
+    enabled: false
+    env:
+      DOCKER_MODS: linuxserver/calibre-web:calibre    
+  cyberchef:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: cyberchef
+    helm_chart_name: cyberchef
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 2.x.x
+  duplicati:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: duplicati
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 5.x.x
+  funkwhale:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: funkwhale
+    helm_chart_name: funkwhale
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 0.x.x
+  headphones:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: headphones
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 4.x.x
+  heimdall:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: heimdall
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 8.x.x
+  homer:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: homer
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 8.x.x
+  huginn:
+    enabled: false
+  immich:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/immich/database-dump
+      mkdir -p /var/data/immich/upload
+      mkdir -p /var/data/runtime/immich/database
+  invidious:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/invidious/database-dump
+      mkdir -p /var/data/runtime/invidious/database
+  jellyfin:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: jellyfin
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 9.x.x
+  joplin:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: joplin
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 5.x.x
+  kanboard:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: kanboard
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 5.x.x
+  kavita:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: kavita
+    helm_chart_name: kavita
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 2.x.x
+  keycloak:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: keycloak
+    helm_chart_name: keycloak
+    helm_chart_repo: bitnami
+    helm_chart_repo_url: https://charts.bitnami.com/bitnami
+    helm_chart_version: 9.x.x
+  komga:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: kanboard
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 6.x.x
+  kubernetes_dashboard:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: kubernetes-dashboard
+    helm_chart_name: kubernetes-dashboard
+    helm_chart_repo: kubernetes-dashboard
+    helm_chart_repo_url: https://kubernetes.github.io/dashboard/
+    helm_chart_version: 5.x.x
+  lazylibrarian:
+    enabled: false
+    env:   
+      DOCKER_MODS: linuxserver/calibre-web:calibre|linuxserver/mods:lazylibrarian-ffmpeg   
+  lemmy:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/runtime/lemmy/postgresql
+      mkdir -p /var/data/lemmy/pictrs
+      mkdir -p /var/data/lemmy/database-dump
+  lidarr:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: lidarr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 14.x.x
+  linx:
+    enabled: false
+  mastodon:
+    enabled: false
+    admin_user: batman
+    admin_email: batman@batcave.org
+    run_pre_deploy: |
+      mkdir -p /var/data/runtime/mastodon/redis
+      mkdir -p /var/data/runtime/mastodon/elasticsearch
+      mkdir -p /var/data/runtime/mastodon/postgres    
+      cd /var/data/config/mastodon/
+      docker-compose -f mastodon.yml up -d
+      docker-compose -f mastodon.yml run --rm web bundle exec rake db:migrate
+      docker-compose -f mastodon.yml down      
+  mealie:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: mealie
+    helm_chart_name: mealie
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 5.x.x
+  minio:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: minio
+    helm_chart_name: minio
+    helm_chart_repo: bitnami
+    helm_chart_repo_url: https://charts.bitnami.com/bitnami
+    helm_chart_version: 11.x.x
+  mylar:
+    enabled: false
+  nextcloud:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/runtime/nextcloud/redis
+      mkdir -p /var/data/runtime/nextcloud/db
+      mkdir -p /var/data/nextcloud/apps
+      mkdir -p /var/data/nextcloud/config
+      mkdir -p /var/data/nextcloud/data
+      mkdir -p /var/data/nextcloud/html
+      mkdir -p /var/data/nextcloud/database-dump
+      mkdir -p /var/data/duplicity/tmp
+  nightscout:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: nightscout
+    helm_chart_name: nightscout
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 1.x.x
+  nomie:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/nomie    
+  nzbget:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: nzbget
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 12.x.x
+  nzbhydra:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: nzbhydra2
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 10.x.x
+  ombi:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: ombi
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 11.x.x
+  oscarr:
+    enabled: false
+  overseerr:
+    enabled: false
+    helm_chart_namespace: autopirate
+    helm_chart_name: overseerr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 5.x.x
+  paperless:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: paperless
+    helm_chart_name: paperless
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 9.x.x
+  pixelfed:
+    enabled: false
+    run_pre_deploy: |
+      mkdir -p /var/data/runtime/pixelfed/redis
+      mkdir -p /var/data/runtime/pixelfed/mariadb  
+      chown www-data /var/data/config/pixelfed/pixelfed.env 
+  podgrab:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: podgrab
+    helm_chart_name: podgrab
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 10.x.x
+  polr:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: polr
+    helm_chart_name: polr
+    helm_chart_repo: polr
+    helm_chart_repo_url: https://christianknell.github.io/helm-charts
+    helm_chart_version: 1.x.x
+    run_pre_deploy: |
+      mkdir -p /var/data/runtime/polr/database
+      mkdir -p /var/data/polr/database-dump    
+  portainer:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: portainer
+    helm_chart_name: portainer
+    helm_chart_repo: portainer
+    helm_chart_repo_url: https://portainer.github.io/k8s/
+    helm_chart_version: latest
+  plex:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: plex
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 6.x.x
+  prometheus_operator:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: prometheus-operator
+    helm_chart_name: prometheus-operator
+    helm_chart_repo: prometheus-operator
+    helm_chart_repo_url: https://prometheus-community.github.io/helm-charts
+    helm_chart_version: 39.x.x
+  projectsend:
+    enabled: false
+  prowlarr:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: prowlarr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 4.x.x
+  radarr:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: radarr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 16.x.x
+  radarr4k:
+    enabled: false
+  readarr:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: readarr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 6.x.x
+  restic:
+    enabled: false
+    env_backup: # Note that in the case of restic, there is no "env" leaf to this dictionary, since we create two separate env files
+    env_prune:
+  rtorrent:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: rtorrent-rutorrent
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 1.x.x
+  rtorrent_flood:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: rtorrent-flood
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 9.x.x
+  sabnzbd:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: sabnzbd
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 9.x.x
+  searx:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: searx
+    helm_chart_name: searx
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 5.x.x
+  searxng:
+    run_pre_deploy: |
+      mkdir -p /var/data/searxng     
+    enabled: false    
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: searxng
+    helm_chart_name: searxng
+    helm_chart_repo: searxng
+    helm_chart_repo_url: https://charts.searxng.org
+    helm_chart_version: 1.x.x    
+  snippet_box:
+    enabled: false
+    helm_chart_namespace: snippet-box
+    helm_chart_name: snippet-box
+    helm_chart_repo: truecharts
+    helm_chart_repo_url: https://charts.truecharts.org
+    helm_chart_version: 0.x.x
+  sonarr:
+    enabled: false
+    # only used when deploying into Kubernetes
+    helm_chart_namespace: autopirate
+    helm_chart_name: sonarr
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 16.x.x
+  sonarr4k:
+    enabled: false
+  uptime_kuma:
+    enabled: false
+    helm_chart_namespace: uptime-kuma
+    helm_chart_name: uptime-kuma
+    helm_chart_repo: k8s-at-home
+    helm_chart_repo_url: https://k8s-at-home.com/charts/
+    helm_chart_version: 1.x.x
+
+# Define the desired versions of various apps here
+packages:
+  github_actions_runner:
+    version: 2.274.2
+  helm:
+    version: v3.9.4
+  kubectl:
+    version: v1.24.3
+  kustomize:
+    version: v4.5.7
+  kubeval:
+    version: v0.16.1
+  rook_ceph:
+    version: v1.4.1
+  ceph:
+    ceph:
+      version: v15.2.1-20200410
+    daemon_base:
+      version: latest-octopus
+    cephcsi:
+      version: v2.0.1
+    csi_node_driver_registrar:
+      version: v1.2.0
+    csi_provisioner:
+      version: v1.4.0
+    csi_snapshotter:
+      version: v1.2.2
+    csi_attacher:
+      version: v2.1.0
+    csi_resizer:
+      version: v0.4.0
+  keepalived:
+    version: 2.0.20

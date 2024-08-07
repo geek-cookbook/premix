@@ -1,0 +1,38 @@
+version: "3.2"
+
+services:
+  oscarr:
+    image: morpheus65535/oscarr:latest
+    env_file: /var/data/config/oscarr/oscarr.env
+    volumes:
+      - /var/data/oscarr:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:oscarr.example.com
+        - traefik.port=5656
+        # uncomment if you want to protect oscarr with traefik-forward-auth using traefikv1 
+        # - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        # - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        # - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.oscarr.rule=Host(`oscarr.example.com`)"
+        - "traefik.http.routers.oscarr.entrypoints=https"
+        - "traefik.http.services.oscarr.loadbalancer.server.port=5656"
+        - "traefik.http.routers.oscarr.middlewares=forward-auth" # this line enforces traefik-forward-auth  
+
+    networks:
+      - traefik_public
+      - autopiratev2_public
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

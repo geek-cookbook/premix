@@ -1,0 +1,35 @@
+resource "proxmox_vm_qemu" "{{ inventory_hostname_short }}" {
+    name = "{{ inventory_hostname_short }}"
+    target_node = "{{ proxmox_host_name }}"
+    clone = "template-geek-cookbook"
+    full_clone = false
+    os_type = "cloud-init"
+    ipconfig0 = "ip={{ ansible_host }}/24,gw={{ proxmox_vlan_gateway }}"  
+    nameserver = "1.1.1.1"  
+    memory = {{ proxmox_vm_ram }}
+    cores = {{ proxmox_vm_cores }}
+    ciuser = "{{ admin_ssh_user }}"
+
+    sshkeys = <<EOF
+{{ admin_ssh_key }}
+EOF
+    network {
+{% if proxmox_vm_vlan_tag is defined %}        
+        tag = {{ proxmox_vm_vlan_tag }}
+{% endif %}
+        model = "virtio"
+        id = 0
+        bridge = "{{ proxmox_vm_network_bridge }}"
+    }
+    disk {
+        storage = "{{ proxmox_storage }}"
+        storage_type = "lvm"
+        size =  {{ proxmox_vm_disk1_size }}
+        id = 0
+        type = "scsi"
+    }      
+}
+
+
+
+

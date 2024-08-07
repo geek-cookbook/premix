@@ -1,0 +1,9 @@
+# Individual sponsors will have their own hosts files
+hosts.*
+!hosts.example
+!hosts.ci
+
+# Don't check-in my own vars
+group_vars/*
+!group_vars/all
+!group_vars/ci

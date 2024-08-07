@@ -1,0 +1,28 @@
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: {{ helm_chart_name }}
+  namespace: {{ helm_chart_namespace }}
+spec:
+  chart:
+    spec:
+      chart: {{ helm_chart_name }}
+      version: {{ helm_chart_version }}
+      sourceRef:
+        kind: HelmRepository
+        name: {{ helm_chart_repo }}
+        namespace: flux-system
+  interval: 30m
+  timeout: 10m
+  install:
+    remediation:
+      retries: {{ flux_helmrelease_retries[helm_chart_name] | default(3) }}
+  upgrade:
+    remediation:
+      retries: -1 # keep trying to remediate
+    crds: CreateReplace # Upgrade CRDs on package update
+  releaseName: {{ helm_chart_name }}
+  valuesFrom:
+  - kind: ConfigMap
+    name: {{ helm_chart_name }}-helm-chart-value-overrides
+    valuesKey: values.yaml # (1)! This is the default, but best to be explicit for clarity

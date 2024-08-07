@@ -1,0 +1,53 @@
+- name: add ubuntu docker apt-key
+  apt_key: 
+    url: https://download.docker.com/linux/ubuntu/gpg 
+    state: present 
+
+- name: install ubuntu docker repository
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+    state: present
+
+- name: install docker packages (try to get apt lock for up to 10 min)
+  apt:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - docker-ce
+    - docker-ce-cli
+    - python3-docker
+    - python3-jsondiff
+    - docker-compose
+  register: _result        
+  until: _result.failed == false
+  retries: 20 # retry X times  
+  delay: 30     # pause for X sec b/w each call
+
+
+- name: init the swarm on the first node
+  docker_swarm:
+    state: present
+  register: docker_swarm_init
+  delegate_to: "{{ play_hosts[0] }}"
+  run_once: true
+
+- set_fact:
+    # worker_token:   "{{ docker_swarm_init.swarm_facts.JoinTokens.Worker }}"
+    manager_token:  "{{ docker_swarm_init.swarm_facts.JoinTokens.Manager }}"
+    master_ip:      "{{ hostvars[play_hosts[0]].ansible_default_ipv4.address }}"
+
+- name: join the swarm on the remaining nodes
+  docker_swarm:
+    advertise_addr: "{{ ansible_default_ipv4.address }}"
+    remote_addrs: "{{ master_ip }}"
+    join_token: "{{ manager_token }}"
+    state: join
+  when: inventory_hostname != play_hosts[0]
+
+- name: Log into DockerHub (to avoid ratelimits)
+  docker_login:
+    username: "{{ docker_hub_username }}"
+    password: "{{ docker_hub_password}}"
+  when:
+  - docker_hub_username is defined
+  - docker_hub_password is defined

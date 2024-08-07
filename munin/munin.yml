@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+
+  munin:
+    image: funkypenguin/munin-server
+    env_file: /var/data/config/munin/munin.env
+    networks:
+      - traefik_public
+    volumes:
+      - /var/data/munin/log:/var/log/munin
+      - /var/data/munin/lib:/var/lib/munin
+      - /var/data/munin/run:/var/run/munin
+      - /var/data/munin/cache:/var/cache/munin  
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:munin.funkypenguin.co.nz
+        - traefik.docker.network=traefik
+        - traefik.port=8080
+
+networks:
+  traefik_public:
+    external: true

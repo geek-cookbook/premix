@@ -1,0 +1,51 @@
+version: '3'
+
+services:
+  kanboard:
+    image: kanboard/kanboard
+    env_file: /var/data/config/kanboard/kanboard.env
+    volumes:
+      - /var/data/kanboard/data:/var/www/app/data
+      - /var/data/kanboard/plugins:/var/www/app/plugins
+    deploy:
+      replicas: 1
+      labels:
+        - traefik.enable=true
+        - traefik.frontend.rule=Host:kanboard.example.com
+        - traefik.port=80
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true
+        - traefik.docker.network=traefik_public
+    networks:
+      - traefik_public
+      - internal 
+
+#  cron:
+#    image: kanboard/kanboard
+#    volumes:
+#     - /var/data/kanboard/data:/var/www/app/data
+#    user: nginx
+#    networks:
+#      - internal
+#    entrypoint: |
+#      bash -c 'bash -s <<EOF
+#        trap "break;exit" SIGHUP SIGINT SIGTERM
+#        while [ ! -f /var/www/app/config.php ]; do
+#          sleep 1
+#        done
+#        while true; do
+#          cd /var/www/app
+#          ./cli cron
+#          sleep 8h
+#        done
+#      EOF'
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.8.0/24

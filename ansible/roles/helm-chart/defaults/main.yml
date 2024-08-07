@@ -1,0 +1,6 @@
+helm_chart_context: cluster
+helm_chart_name: metrics-server
+helm_chart_repo_url: https://kubernetes-charts.storage.googleapis.com
+helm_chart_repo: stable
+helm_extra_args: "--wait --debug"
+helm_chart_release: "{{ helm_chart_name }}"

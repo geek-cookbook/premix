@@ -1,0 +1,54 @@
+version: '3.2'
+
+services:
+  mail:
+    image: tvial/docker-mailserver:latest
+    ports:
+      - target: 25
+        published: 25
+        protocol: tcp
+        mode: host
+      - target: 587
+        published: 587
+        protocol: tcp
+        mode: host
+      - target: 993
+        published: 993
+        protocol: tcp
+        mode: host
+      - target: 995
+        published: 995
+        protocol: tcp
+        mode: host
+    volumes:
+      - /var/data/docker-mailserver/maildata:/var/mail
+      - /var/data/docker-mailserver/mailstate:/var/mail-state
+      - /var/data/docker-mailserver/config:/tmp/docker-mailserver
+      - /var/data/docker-mailserver/letsencrypt:/etc/letsencrypt
+    env_file: /var/data/config/mailserver/mailserver.env
+    networks:
+      - internal
+    deploy:
+      replicas: 1
+
+  rainloop:
+    image: hardware/rainloop
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:rainloop.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=8888
+    volumes:
+      - /var/data/docker-mailserver/rainloop:/rainloop/data
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.2.0/24

@@ -1,0 +1,23 @@
+data "vsphere_datacenter" "dc" {
+  name = "{{ vsphere_datacenter }}"
+}
+
+data "vsphere_datastore" "datastore" {
+  name          = "{{ vsphere_datastore }}"
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_compute_cluster" "cluster" {
+  name          = "{{ vsphere_compute_cluster }}"
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_network" "network" {
+  name          = "{{ vsphere_network }}"
+  datacenter_id = data.vsphere_datacenter.dc.id
+}
+
+data "vsphere_virtual_machine" "template" {
+  name          = "/{{ vsphere_datacenter }}/vm/{{vsphere_template_folder}}/{{vsphere_template_name}}"
+  datacenter_id = data.vsphere_datacenter.dc.id
+}

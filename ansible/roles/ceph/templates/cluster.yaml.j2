@@ -1,0 +1,46 @@
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  network:
+    hostNetwork: true
+  dataDirHostPath: /var/lib/rook
+  dashboard:
+    enabled: true
+  mon:
+    count: 3
+    allowMultiplePerNode: false
+  cephVersion:
+    image: ceph/ceph:{{ packages.ceph.ceph.version }}
+  storage:
+    resources:
+        osd:
+          requests:
+            cpu: "2000m"
+            memory: "4Gi"  
+        mon:
+          requests:
+            cpu: "2000m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "1Gi"
+        mgr:
+          requests:
+            cpu: "2000m"
+            memory: "1Gi"
+          limits:
+            cpu: "2000m"
+            memory: "1Gi"  
+          modules:
+          - name: pg_autoscaler
+            enabled: true    
+    useAllNodes: true
+    useAllDevices: false
+    deviceFilter: {{ ceph_target_disk }}
+    config:
+      databaseSizeMB: "1024"
+      journalSizeMB: "1024"
+      

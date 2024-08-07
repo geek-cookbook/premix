@@ -1,0 +1,53 @@
+version: '3'
+services:
+
+  duplicacy:
+    hostname: duplicacy-web
+    image: saspus/duplicacy-web
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /share/appdata/duplicacy/config:/config
+      - /share/appdata/duplicacy/logs:/logs
+      - /share/runtime/duplicacy:/cache
+      # Map Backup Sources Below
+      - /share/appdata:/backup/appdata:ro
+      - /share/Photos:/backup/photos:ro
+      - /share/downloads:/backup/downloads:ro
+      - /share/media/movies:/backup/movies:ro
+      - /share/media/music:/backup/music:ro
+      - /share/media/tv:/backup/tv:ro
+      # Map Local / External Storage as a Destination (optional if uploading to cloud/offsite)
+      - /share/USBDisk1:/storage:rw
+    networks:
+      - internal
+
+  duplicacy_proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /share/appdata/config/duplicacy/duplicacy.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:backup.gkoerk.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /share/appdata/config/duplicacy/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://duplicacy:3875
+      -redirect-url=https://backup.gkoerk.com
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.101.0/24 

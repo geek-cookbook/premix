@@ -1,0 +1,5 @@
+---
+# defaults file for k3s-master
+
+kubeconfig: ~/.kube/k3s-config
+cluster_name: k3s

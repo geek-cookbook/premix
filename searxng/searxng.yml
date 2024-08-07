@@ -1,0 +1,36 @@
+version: "3.2"
+
+services:
+  
+  searxng:
+    image: searxng/searxng:latest
+    env_file: /var/data/config/searxng/searxng.env
+    #command: ${searxng_COMMAND:-}
+    volumes:
+      - /var/data/searxng:/etc/searxng:rw
+    # cap_drop:
+    #   - ALL
+    # cap_add:
+    #   - CHOWN
+    #   - SETGID
+    #   - SETUID
+    #   - DAC_OVERRIDE
+  
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv2
+        - "traefik.http.routers.searxng.rule=Host(`searxng.example.com`)"
+        - "traefik.http.routers.searxng.entrypoints=https"
+        - "traefik.http.services.searxng.loadbalancer.server.port=8080"
+
+    networks:
+      - traefik_public
+  
+networks:
+  traefik_public:
+    external: true

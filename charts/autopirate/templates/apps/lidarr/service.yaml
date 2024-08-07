@@ -1,0 +1,20 @@
+{{ $app := .Values.apps.lidarr }} {{ $fullname := printf "%s-%s-%s" .Release.Name $app.name .Chart.Name | trunc 63 | trimSuffix "-" }}
+{{- if $app.enable  -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullname }}
+  labels:
+  {{- include "autopirate.labels" . | indent 4 }}  
+  {{- range $key, $value := $app.labels }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+spec:
+  type: {{ $app.serviceType }}
+  ports:
+  - port: {{ $app.port }}
+    protocol: TCP
+    name: http-{{ $app.name }}
+  selector:
+    app: {{ $fullname }}
+{{- end -}}

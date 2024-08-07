@@ -1,0 +1,24 @@
+name: role-komga
+# This action is called on a push to any branch except master. Why? 
+# It enables a development model where a branch can be iterated upon while testing
+# just _one_ role, without having to re-validate the entire playbook, which is what happens
+# as soon as a PR is created
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ansible/roles/komga/**'
+      - 'komga/**'
+    exclude_branches:
+      - 'master' # no point in re-testing all this on merge-to-master, we'll rather do a more comprehensive test
+      - 'main'   # eventually we'll transistion "master" to "main"
+jobs:
+  test-komga:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+    - name: deploy 
+      run: | 
+        cd ansible
+        ANSIBLE_CONFIG=ansible-ci.cfg ansible-playbook -i hosts.ci deploy.yml -t komga -e ci_validation=true

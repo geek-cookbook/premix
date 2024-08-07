@@ -1,0 +1,11 @@
+version: "3"
+
+services:
+    backup:
+        image: tecnativa/duplicity
+        env_file: /var/data/config/duplicity/duplicity.env       
+        volumes: 
+          - /etc/localtime:/etc/localtime:ro
+          - /var/data:/var/data:ro
+          - /var/data/duplicity/tmp:/tmp
+          - /var/data/duplicity/archive:/archive

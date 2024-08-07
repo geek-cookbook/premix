@@ -1,0 +1,15 @@
+vsphere_datacenter: ShoresLab
+vsphere_datastore: esx3_ssd_2
+vsphere_compute_cluster: ProdCluster
+vsphere_network: production
+vsphere_template_folder: Templates
+vsphere_template_name: ubuntu-16-04-lts-template
+vsphere_vm_ram: 4096                                  # How much RAM to give each VM
+vsphere_vm_cores: 2                                   # How many processors to give each VM
+vsphere_vm_disk0_size: 30                             # Size (in GB) of the primary (system) disk on each VM
+vsphere_vlan_gateway: 192.168.99.1                    # Network gateway for the VM network adapter
+terraform_dir: ~/.terraform/funky-penguins-are-funky  # Directory to store the generated Terraform files
+admin_ssh_user: hacker-changme                     # User to be created on each VM
+admin_ssh_key: ssh-rsa b00gusdata
+vsphere_host_name: vcenter67.local                     # Name of the vsphere host that commands will be run against
+vsphere_host_username: administrator@vsphere.local                      # vsphere user name for running commands

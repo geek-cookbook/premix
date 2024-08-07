@@ -1,0 +1,37 @@
+version: "3.2"
+
+services:
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    env_file: /var/data/config/nzbget/nzbget.env
+    volumes:
+      - /var/data/nzbget:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:nzbget.example.com
+        - traefik.port=6789
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.nzbget.rule=Host(`nzbget.example.com`)"
+        - "traefik.http.routers.nzbget.entrypoints=https"
+        - "traefik.http.services.nzbget.loadbalancer.server.port=6789"
+        - "traefik.http.routers.nzbget.middlewares=forward-auth"
+        
+    networks:
+      - traefik_public
+      - autopiratev2_public
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

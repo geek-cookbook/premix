@@ -1,0 +1,56 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta2
+kind: Kustomization
+metadata:
+{% if helm_chart_name == helm_chart_namespace %}
+  name: {{ helm_chart_name }}
+{% else %}
+  name: {{ helm_chart_name }}--{{ helm_chart_namespace }}
+{% endif %}
+  namespace: flux-system
+spec:
+{% if combined_config[config].kustomization.depends_on is defined %}
+  dependsOn: 
+{% for dependency in combined_config[config].kustomization.depends_on %}
+  - name: "{{ dependency }}"
+{% endfor %}
+{% endif %}
+  interval: 30m
+  path: ./{{ recipe }}
+  prune: true # remove any elements later removed from the above path
+  timeout: 10m # if not set, this defaults to interval duration, which is 1h
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  validation: server
+{% if combined_config[config].kustomization.health_check_crds is defined %}
+  healthChecks:
+{% for crd in combined_config[config].kustomization.health_check_crds %}
+    - apiVersion: apiextensions.k8s.io/v1
+      kind: CustomResourceDefinition
+      name: {{ crd }}
+{% endfor %}
+{% endif %}
+{% if combined_config[config].kustomization.health_check_deployments is defined %}
+{% for deployment in combined_config[config].kustomization.health_check_deployments %}
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: {{ deployment }}
+      namespace: {{ helm_chart_namespace }}
+{% endfor %}
+{% endif %}
+{% if combined_config[config].kustomization.health_check_daemonsets is defined %}
+{% for daemonset in combined_config[config].kustomization.health_check_daemonsets %}
+    - apiVersion: apps/v1
+      kind: DaemonSet
+      name: {{ daemonset }}
+      namespace: {{ helm_chart_namespace }}
+{% endfor %}
+{% endif %}
+{% if combined_config[config].kustomization.health_check_statefulsets is defined %}
+{% for statefulset in combined_config[config].kustomization.health_check_statefulsets %}
+    - apiVersion: apps/v1
+      kind: StatefulSet
+      name: {{ statefulset }}
+      namespace: {{ helm_chart_namespace }}
+{% endfor %}
+{% endif %}

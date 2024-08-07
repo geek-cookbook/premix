@@ -1,0 +1,96 @@
+version: '3.2'
+
+services:
+  diskover:
+    image: lscr.io/linuxserver/diskover:latest
+    env_file: /var/data/config/diskover/diskover.env
+    volumes:
+      - /var/data/diskover/config:/config
+      - /data:/data
+# Or, you can bind multiple host directories under the /data directory for scanning.
+      #- /share/Photos:/data/photos
+      #- /share/downloads:/data/downloads
+      #- /share/appdata:/data/appdata
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      resources:
+        limits:
+          memory: 4096M
+
+  webproxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/diskover/diskover.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:diskover.funkypenguin.co.nz
+        - traefik.port=4180
+        - traefik.docker.network=traefik_public
+    volumes:
+      - /var/data/config/diskover/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://diskover:80
+      -redirect-url=https://diskover.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+      --ssl-insecure-skip-verify=true
+
+  dashproxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/diskover/diskoverdash.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:diskoverdash.funkypenguin.co.nz
+        - traefik.port=4180
+        - traefik.docker.network=traefik_public
+    volumes:
+      - /var/data/config/diskover/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://diskover:9181
+      -redirect-url=https://diskoverdash.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+      --ssl-insecure-skip-verify=true
+  
+  elasticsearch:
+    image: elasticsearch:5.6-alpine
+    volumes:
+      - /var/data/runtime/diskover/elasticsearch:/usr/share/elasticsearch/data
+    environment:
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms2048m -Xmx2048m"
+    networks:
+      - internal
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+        reservations:
+          memory: 2048M
+  
+  redis:
+    image: redis:alpine
+    volumes:
+      - /var/data/runtime/diskover/redis:/data
+    networks:
+      - internal
+      
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.48.0/24      

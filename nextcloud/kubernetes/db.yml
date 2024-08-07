@@ -1,0 +1,65 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: nextcloud
+  name: db
+  labels:
+    app: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - image: mariadb:10
+          name: db
+# only uncomment these to get the container to run so that we can transfer files into the PV
+#          command: [ "/bin/sleep" ]
+#          args: [ "1h" ]
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          volumeMounts:
+            - name: nextcloud-db
+              mountPath: /var/lib/mysql
+          env:
+          - name: MYSQL_DATABASE
+            value: "nextcloud"
+          - name: MYSQL_USER
+            value: "nextcloud"
+          - name: MYSQL_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: nextcloud-credentials
+                key: mysql-password.secret
+          - name: MYSQL_ROOT_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: nextcloud-credentials
+                key: mysql-root-password.secret
+      volumes:
+        - name: nextcloud-db
+          persistentVolumeClaim:
+            claimName: nextcloud-db
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: db
+  namespace: nextcloud
+spec:
+  selector:
+    app: db
+  ports:
+  - protocol: TCP
+    port: 3306
+  clusterIP: None

@@ -1,0 +1,38 @@
+version: "3.2"
+
+services:
+
+  traefik-forward-auth:
+    image: thomseddon/traefik-forward-auth:2.1.0
+    env_file: /var/data/config/traefik-forward-auth/traefik-forward-auth.env
+    networks:
+      - traefik_public
+    deploy:
+      labels:
+        # traefikv1
+        - "traefik.port=4181"
+        - "traefik.frontend.rule=Host:auth.example.com"
+        - "traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181"
+        - "traefik.frontend.auth.forward.trustForwardHeader=true"
+
+        # traefikv2
+        - "traefik.docker.network=traefik_public"
+        - "traefik.http.routers.auth.rule=Host(`auth.example.com`)"
+        - "traefik.http.routers.auth.entrypoints=https"
+        - "traefik.http.routers.auth.tls=true"
+        - "traefik.http.routers.auth.tls.domains[0].main=example.com"
+        - "traefik.http.routers.auth.tls.domains[0].sans=*.example.com"        
+        - "traefik.http.routers.auth.tls.certresolver=main"
+        - "traefik.http.routers.auth.service=auth@docker"
+        - "traefik.http.services.auth.loadbalancer.server.port=4181"
+        - "traefik.http.middlewares.forward-auth.forwardauth.address=http://traefik-forward-auth:4181"
+        - "traefik.http.middlewares.forward-auth.forwardauth.trustForwardHeader=true"
+        - "traefik.http.middlewares.forward-auth.forwardauth.authResponseHeaders=X-Forwarded-User"
+        - "traefik.http.routers.auth.middlewares=forward-auth"
+        
+    # uncomment this to debug
+    #entrypoint: /bin/sleep 1h
+
+networks:
+  traefik_public:
+    external: true

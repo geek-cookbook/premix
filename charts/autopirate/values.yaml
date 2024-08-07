@@ -1,0 +1,205 @@
+# The claims
+claims:
+
+  # The Media Storage PVC
+  media:
+    size: 1Gi
+    annotations: {}
+    labels: {}
+    name: media
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+
+  # The claim specs for each config claim
+  config:
+    size: 10Mi
+    annotations: {}
+    labels: {}
+    name: config
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+
+  # The downloads PVC
+  download:
+    size: 1Gi
+    annotations: {}
+    labels: {}
+    name: download
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+
+ingress:
+  enabled: true
+  name: autopirate
+  type: kube
+  tls: {}
+
+apps:
+  bazarr:
+    name: bazarr
+    enable: true
+    ingress:
+      enable: true
+      host: bazarr.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/bazarr
+    port: 6767
+    resources: {}
+    serviceType: ClusterIP
+
+  sabnzbd:
+    # Use nzbget - sabnzbd is experimental ATM.
+    name: sabnzbd
+    enable: false
+    ingress:
+      enable: true
+      host: sabnzbd.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/sabnzbd
+    port: 8080
+    resources: {}
+    serviceType: ClusterIP
+
+  nzbget:
+    name: nzbget
+    enable: true
+    ingress:
+      enable: true
+      host: nzbget.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/nzbget
+    port: 6789
+    resources: {}
+    serviceType: ClusterIP
+
+  rtorrent:
+    name: rtorrent
+    enable: true
+    ingress:
+      enable: true
+      host: rtorrent.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/rutorrent
+    port: 80
+    resources: {}
+    serviceType: ClusterIP
+
+  lazylibrarian:
+    name: lazylibrarian
+    enable: true
+    ingress:
+      enable: true
+      host: lazylibrarian.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/lazylibrarian
+    port: 5299
+    resources: {}
+    serviceType: ClusterIP
+
+  mylar:
+    name: mylar
+    enable: true
+    ingress:
+      enable: true
+      host: mylar.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/mylar
+    port: 8090
+    resources: {}
+    serviceType: ClusterIP
+
+  ombi:
+    name: ombi
+    enable: true
+    ingress:
+      enable: true
+      host: ombi.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/ombi
+    port: 3579
+    resources: {}
+    serviceType: ClusterIP
+
+  headphones:
+    name: headphones
+    enable: true
+    ingress:
+      enable: true
+      host: headphones.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/headphones
+    port: 8181
+    resources: {}
+    serviceType: ClusterIP
+
+  radarr:
+    name: radarr
+    enable: true
+    ingress:
+      enable: true
+      host: radarr.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/radarr
+    port: 7878
+    resources: {}
+    serviceType: ClusterIP
+
+  sonarr:
+    name: sonarr
+    enable: true
+    ingress:
+      enable: true
+      host: sonarr.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/sonarr
+    port: 8989
+    resources: {}
+    serviceType: ClusterIP
+
+  lidarr:
+    name: lidarr
+    enable: true
+    ingress:
+      enable: true
+      host: lidarr.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/lidarr
+    port: 8686
+    resources: {}
+    serviceType: ClusterIP
+
+  nzbhydra:
+    name: nzbhydra
+    enable: true
+    ingress:
+      enable: true
+      host: nzbhydra.local
+      path: /
+    labels: {}
+    replicas: 1
+    image: lscr.io/linuxserver/hydra
+    port: 5075
+    resources: {}
+    serviceType: ClusterIP

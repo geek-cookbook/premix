@@ -1,0 +1,14 @@
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: keycloak
+
+- name: Create extra directories required
+  file:
+    path: "{{ item }}"
+    state: directory
+    # owner: "1001"
+  loop:
+  - /var/data/keycloak/database-dump
+  - /var/data/runtime/keycloak/database

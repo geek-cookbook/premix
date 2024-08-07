@@ -1,0 +1,6 @@
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: bitwarden
+

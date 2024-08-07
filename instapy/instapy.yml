@@ -1,0 +1,24 @@
+# Can you have content at teh tomp of a file
+version: '3'
+services:
+
+    image: instapy/instapy:latest
+
+    # When using swarm, you can't use relative paths, so the following needs to be set to the full filesystem path to your logs and docker_quickstart.py
+    volumes:
+      - /var/data/instapy/workspace:/root/InstaPy
+      - /var/data/instapy/quickstart.py:/quickstart.py:ro
+
+    # This section allows docker to restart the container when it exits (either normally or abnormally), which ensures that
+    # InstaPy keeps re-reunning. Tweak the delay to avoid being banned for excessive activity
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 3600s
+
+networks:
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.20.0/24    

@@ -1,0 +1,13 @@
+network:
+  version: 2
+  ethernets:
+    ens160:
+      dhcp4: false
+      addresses:
+        - {{ ansible_host }}/24
+      gateway4: {{ vsphere_vlan_gateway }}
+      nameservers:
+        addresses:
+          - {{ vsphere_dns_server }}
+local-hostname: {{ inventory_hostname_short }}
+instance-id: {{ inventory_hostname_short }}

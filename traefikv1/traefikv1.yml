@@ -1,0 +1,54 @@
+version: "3.2"
+
+services:
+  app:
+    image: traefik:alpine
+    env_file: /var/data/config/traefikv1/traefikv1.env
+    # Note below that we use host mode to avoid source nat being applied to our ingress HTTP/HTTPS sessions
+    # Without host mode, all inbound sessions would have the source IP of the swarm nodes, rather than the
+    # original source IP, which would impact logging. If you don't care about this, you can expose ports the 
+    # "minimal" way instead
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 8080
+        published: 8080
+        protocol: tcp
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/data/config/traefikv1:/etc/traefikv1
+      - /var/data/traefikv1/traefik.log:/traefik.log
+      - /var/data/traefikv1/acme.json:/acme.json
+    networks:
+      - traefik_public
+    # Global mode makes an instance of traefik listen on _every_ node, so that regardless of which
+    # node the request arrives on, it'll be forwarded to the correct backend service.
+    deploy:
+      mode: global
+      labels:
+        - traefik.frontend.rule=Host:traefik.example.com
+        - traefik.port=8080    
+        - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        - traefik.frontend.auth.forward.trustForwardHeader=true
+        - traefik.docker.network=traefik_public
+      placement:
+        constraints: [node.role == manager]
+    command: |
+      --web \
+      --docker \
+      --docker.swarmmode \
+      --docker.watch \
+      --docker.domain=example.com \
+      --logLevel=DEBUG \
+      --configFile=/etc/traefikv1/traefikv1.toml
+
+networks:
+  traefik_public:
+    external: true

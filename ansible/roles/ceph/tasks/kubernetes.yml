@@ -1,0 +1,61 @@
+- import_role:
+    name: helm-chart
+  tags: rook-ceph
+  vars: 
+    helm_chart_name: rook-ceph
+    helm_chart_namespace: rook-ceph
+    helm_chart_repo: rook-release
+    helm_chart_repo_url: "https://charts.rook.io/release"
+    helm_chart_version: "{{ packages.rook_ceph.version }}"
+
+- name: "Create temporary directory for templated manifests"
+  tempfile:
+    state: directory
+    suffix: temp
+  register: manifestdir
+
+- name: Copy manifests for cluster
+  template:
+    src: cluster.yaml.j2
+    dest: "{{ manifestdir.path }}/cluster.yaml"
+
+- name: Copy YAML for storageclass
+  template:
+    src: storageclass.yaml.j2
+    dest: "{{ manifestdir.path }}/storageclass.yaml"
+
+- name: Copy YAML for toolbox
+  template:
+    src: toolbox.yaml.j2
+    dest: "{{ manifestdir.path }}/toolbox.yaml"    
+
+- name: Yes, CRDs have applied
+  shell: kubectl get crd cephclusters.ceph.rook.io
+  register: _result        
+  until: _result.failed == false
+  retries: 60 # retry X times  
+  delay: 5     # pause for X sec b/w each call
+
+- name: Apply manifests
+  shell: "kubectl apply -R -f {{ manifestdir.path }} --wait"
+
+- name: Setup default storageclass
+  command: |
+    kubectl patch storageclass rook-ceph-block -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+  
+- name: "Remove temporary directories 🗑"
+  file:
+    path: "{{ manifestdir.path }}"
+    state: absent
+
+- debug:
+    msg: Wait for cluster to be able to provision PVs
+
+- name: Cluster is now able to provision PVs!
+  shell: |
+    kubectl -n rook-ceph exec $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') -- ceph -s | grep -v '0 osds' | grep HEALTH_OK
+  register: _result        
+  until: _result.failed == false
+  retries: 90 # retry X times  
+  delay: 5     # pause for X sec b/w each call    
+

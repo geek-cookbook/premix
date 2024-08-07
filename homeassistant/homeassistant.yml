@@ -1,0 +1,123 @@
+version: "3"
+
+services:
+    influxdb:
+      image: influxdb
+      networks:
+        - internal      
+      volumes:
+        - /var/data/realtime/homeassistant/influxdb:/var/lib/influxdb
+        - /etc/localtime:/etc/localtime:ro
+      ports:
+        - 8086:8086
+
+    influxdb-backup:
+      image: influxdb
+      volumes:
+        - /var/data/homeassistant/influxdb-dump:/dump
+      entrypoint: |
+        bash -c 'bash -s <<EOF
+        trap "break;exit" SIGHUP SIGINT SIGTERM
+        sleep 2m
+        while /bin/true; do
+          mkdir /dump/`date +%d-%m-%Y`/
+          influxd backup -database homeassistant /dump/`date +%d-%m-%Y`/
+          tar cvfp /dump/influxdb-`date +%d-%m-%Y`.tar.gz /dump/`date +%d-%m-%Y`/
+          rm -rf /dump/`date +%d-%m-%Y`/
+          ls -tr /dump/influxdb-*.tar.gz | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+          sleep $$BACKUP_FREQUENCY
+        done
+        EOF'
+      networks:
+      - internal
+
+    homeassistant:
+      image: homeassistant/home-assistant
+      dns_search: hq.funkypenguin.co.nz
+      volumes:
+        - /var/data/homeassistant/homeassistant:/config
+        - /etc/localtime:/etc/localtime:ro
+      deploy:
+        labels:
+          - traefik.frontend.rule=Host:homeassistant.funkypenguin.co.nz
+          - traefik.docker.network=traefik_public
+          - traefik.port=8123
+      networks:
+        - traefik_public
+        - internal      
+#        - outside      
+
+#    homebridge:
+#      image: jharmn/docker-homebridge-homeassistant
+#      volumes:
+#        - /var/data/homeassistant/homebridge:/root/.homebridge 
+#      ports:
+#        - "5353:5353"
+#        - "51826:51826"
+
+    homeassistant_proxy:
+      # Use this image becasuewe want websockets support
+      image: singingcode/docker_oauth2_proxy
+      env_file : /var/data/config/homeassistant/homeassistant.env
+      dns_search: hq.funkypenguin.co.nz
+      networks:
+        - internal
+        - traefik_public
+      #deploy:
+      #  labels:
+      #    - traefik.frontend.rule=Host:homeassistant.funkypenguin.co.nz
+      #    - traefik.docker.network=traefik_public
+      #    - traefik.port=4180
+      volumes:
+        - /var/data/config/homeassistant/authenticated-emails.txt:/authenticated-emails.txt
+      command: |
+        -cookie-secure=false
+        -upstream=http://homeassistant:8123
+        -redirect-url=https://homeassistant.funkypenguin.co.nz
+        -http-address=http://0.0.0.0:4180
+        -email-domain=funkypenguin.co.nz
+        -provider=github
+        -authenticated-emails-file=/authenticated-emails.txt
+        -skip-auth-regex=/manifest.json
+        -skip-auth-regex=/api/notify.html5/callback
+
+    grafana-app:
+      image: grafana/grafana
+      env_file : /var/data/config/homeassistant/grafana.env
+      volumes:
+        - /var/data/homeassistant/grafana:/var/lib/grafana
+        - /etc/localtime:/etc/localtime:ro
+      networks:
+        - internal
+
+    grafana-proxy:
+      image: funkypenguin/oauth2_proxy
+      env_file : /var/data/config/homeassistant/grafana.env
+      dns_search: hq.funkypenguin.co.nz
+      networks:
+        - internal
+        - traefik_public
+      deploy:
+        labels:
+          - traefik.frontend.rule=Host:grafana.funkypenguin.co.nz
+          - traefik.docker.network=traefik_public
+          - traefik.port=4180
+      volumes:
+        - /var/data/config/homeassistant/authenticated-emails.txt:/authenticated-emails.txt
+      command: |
+        -cookie-secure=false
+        -upstream=http://grafana-app:3000
+        -redirect-url=https://grafana.funkypenguin.co.nz
+        -http-address=http://0.0.0.0:4180
+        -email-domain=funkypenguin.co.nz
+        -provider=github
+        -authenticated-emails-file=/authenticated-emails.txt
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.13.0/24

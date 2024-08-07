@@ -1,0 +1,19 @@
+name: role-destroy-proxmox
+# This action should only be called on a pull request against the master branch (allows WIP pushes without triggering CI)
+on:
+  push:
+    paths:
+      - 'ansible/roles/destroy-proxmox/**'
+      - 'destroy-proxmox/**'
+    exclude_branches:
+      - 'master' # no point in re-testing all this on merge-to-master, we'll rather do a more comprehensive test
+
+jobs:
+  test-destroy-proxmox:
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v2
+    - name: deploy 
+      run: | 
+        cd ansible
+        ansible-playbook -i hosts.ci deploy.yml -t destroy-proxmox

@@ -1,0 +1,59 @@
+apiVersion: v2
+version: 0.0.3
+name: wash-hands
+home: https://geek-cookbook.funkypenguin.co.nz
+
+description: Some base dependencies in a sane cluster
+appVersion: 0.0.1
+
+maintainers:
+  - name: funkypenguin
+    email: davidy@funkypenguin.co.nz
+    url: https://www.funkypenguin.co.nz
+
+dependencies:
+  - name: kured
+    version: 1.4.2
+    repository: https://kubernetes-charts.storage.googleapis.com/
+    condition: kured.enabled
+
+  - name: nginx-ingress
+    version: 1.30.1
+    repository: https://kubernetes-charts.storage.googleapis.com/
+    condition: nginx-ingress.enabled
+
+  - name: goldilocks
+    version: 2.1.0
+    repository: https://charts.fairwinds.com/stable
+    condition: goldilocks.enabled
+
+  - name: cert-manager
+    version: v0.13.0
+    repository: https://charts.jetstack.io
+    condition: certmanager.enabled
+    alias: certmanager
+
+  - name: grafana
+    version: 1.2.5
+    repository: https://charts.bitnami.com/bitnami
+    condition: grafana.enabled
+
+  - name: loki
+    version: 0.25.0
+    repository: https://grafana.github.io/loki/charts
+    condition: loki.enabled
+
+  - name: promtail
+    version: 0.18.0
+    repository: https://grafana.github.io/loki/charts
+    condition: promtail.enabled
+
+  - name: prometheus-operator
+    version: 0.11.1
+    repository: https://charts.bitnami.com/bitnami
+    condition: prometheus-operator.enabled
+
+  - name: kube-eagle
+    version: 1.1.5
+    repository: https://raw.githubusercontent.com/cloudworkz/kube-eagle-helm-chart/master
+    condition: kube-eagle.enabled

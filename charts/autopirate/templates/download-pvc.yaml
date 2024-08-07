@@ -1,0 +1,20 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ .Values.claims.download.name }}
+  labels:
+  {{- include "autopirate.labels" . | indent 4 }}  
+  {{- range $key, $value := .Values.claims.download.labels }}
+    {{ $key }}: {{ $value | quote }}
+  {{- end }}
+  annotations:
+    {{- range $key, $value := .Values.claims.download.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.claims.download.accessMode }}
+  storageClassName: {{ .Values.claims.download.storageClass }}
+  resources:
+    requests:
+      storage: {{ .Values.claims.download.size }}

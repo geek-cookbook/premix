@@ -1,0 +1,37 @@
+version: "3.2" # https://docs.docker.com/compose/compose-file/compose-versioning/#version-3
+
+services:
+  nomie:
+    image: ghcr.io/qcasey/nomie6-oss:master
+
+    deploy:
+      labels:
+        # traefik common
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.http.routers.nomie.rule=Host(`nomie.example.com`)"
+        - "traefik.http.routers.nomie.entrypoints=https"
+        - "traefik.http.services.nomie.loadbalancer.server.port=80" 
+    networks:
+      - traefik_public
+
+  couchdb:
+    env_file: /var/data/config/nomie/nomie.env  
+    image: couchdb:3
+    deploy:
+      labels:
+        # traefik common
+        - "traefik.enable=true"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.http.routers.nomiedb.rule=Host(`nomiedb.example.com`)"
+        - "traefik.http.routers.nomiedb.entrypoints=https"
+        - "traefik.http.services.nomiedb.loadbalancer.server.port=5984"       
+    volumes:
+      - /var/data/nomie:/opt/couchdb/data
+      - /var/data/config/nomie/couchdb.ini:/opt/couchdb/etc/local.d/docker.ini      
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

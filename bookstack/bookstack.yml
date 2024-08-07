@@ -1,0 +1,67 @@
+version: '3'
+
+services:
+
+  db:
+    image: mariadb:10
+    env_file: /var/data/config/bookstack/bookstack.env
+    networks:
+      - internal
+    volumes:
+      - /var/data/runtime/bookstack/db:/var/lib/mysql
+
+  proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/bookstack/bookstack.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:bookstack.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/bookstack/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://app
+      -redirect-url=https://bookstack.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -email-domain=funkypenguin.co.nz
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  app:
+    image: solidnerd/bookstack
+    env_file: /var/data/config/bookstack/bookstack.env
+    networks:
+      - internal
+
+  db-backup:
+    image: mariadb:10
+    env_file: /var/data/config/bookstack/bookstack.env
+    volumes:
+      - /var/data/bookstack/database-dump:/dump
+      - /etc/localtime:/etc/localtime:ro
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        mysqldump -h db --all-databases | gzip -c > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.sql.gz
+        ls -tr /dump/dump_*.sql.gz | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.33.0/24

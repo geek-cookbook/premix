@@ -1,0 +1,72 @@
+version: "3.2"
+
+services:
+  invidious:
+    image: quay.io/invidious/invidious:latest
+    environment:
+      INVIDIOUS_CONFIG: |
+              db:
+                dbname: invidious
+                user: invidious
+                password: youtubesucks
+                host: db
+                port: 5432
+              check_tables: true
+              # external_port:
+              # domain:
+              # https_only: false
+              # statistics_enabled: false    
+    env_file: /var/data/config/invidious/invidious.env
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:invidious.example.com
+        - traefik.port=3000
+
+        # traefikv2
+        - "traefik.http.routers.invidious.rule=Host(`invidious.example.com`)"
+        - "traefik.http.routers.invidious.entrypoints=https"
+        - "traefik.http.services.invidious.loadbalancer.server.port=3000"        
+    networks:
+      - internal
+      - traefik_public
+
+  db:
+    image: postgres:14
+    env_file: /var/data/config/invidious/invidious.env
+    volumes:
+      - /var/data/runtime/invidious/database:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  db-backup:
+    image: postgres:14
+    env_file: /var/data/config/invidious/invidious-db-backup.env
+    volumes:
+      - /var/data/invidious/database-dump:/dump
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        pg_dump -Fc > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.psql
+        ls -tr /dump/dump_*.psql | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+      - internal
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.21.0/24

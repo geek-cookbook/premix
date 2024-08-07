@@ -1,0 +1,12 @@
+vault_proxmox_host_password: dont-use-me-but-dont-fail-pipelines
+vault_vcenter_host_password: dont-use-me-but-dont-fail-pipelines
+vault_ceph_dashboard_username: batman
+vault_ceph_dashboard_password: supermansucks
+vault_github_flux_token: bogus
+
+# This is commented out to avoid clashing with your vault, but it's here to illustrate
+# How to insert secrets into a vault which can then later be "pulled in" by ansible for a deploy
+# vault_config:
+#   traefik:
+#     aws_access_key_id: "change-me-if-you-use-route53"
+#     aws_secret_access_key: "change-me-if-you-use-route53"

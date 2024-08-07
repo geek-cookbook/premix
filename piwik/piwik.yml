@@ -1,0 +1,66 @@
+version: '3'
+
+services:
+  db:
+    image: mysql:latest
+    volumes:
+      - /var/data/runtime/piwik/database:/var/lib/mysql
+    env_file : /var/data/config/piwik/piwik.env
+    networks:
+    - internal
+
+  db-backup:
+    image: mysql:latest
+    env_file : /var/data/config/piwik/piwik.env
+    volumes:
+      - /var/data/piwik/database-dump:/dump
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      sleep 2m
+      while /bin/true; do
+        mysqldump -h db --all-databases | gzip -c > /dump/dump_\`date +%d-%m-%Y"_"%H_%M_%S\`.sql.gz
+        ls -tr /dump/dump_*.sql.gz | head -n -"$$BACKUP_NUM_KEEP" | xargs -r rm
+        sleep $$BACKUP_FREQUENCY
+      done
+      EOF'
+    networks:
+    - internal  
+
+  app:
+    image: piwik:apache
+    volumes:
+      - /var/data/piwik/config:/var/www/html/config
+    networks:
+    - internal
+    - traefik
+    deploy:
+      mode: global
+      labels:
+        - traefik.frontend.rule=Host:piwik.funkypenguin.co.nz
+        - traefik.docker.network=traefik
+        - traefik.port=80
+
+  cron:
+    image: piwik:apache
+    volumes:
+      - /var/data/piwik/config:/var/www/html/config
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      trap "break;exit" SIGHUP SIGINT SIGTERM
+      while /bin/true; do
+        su -s "/bin/bash" -c "/usr/local/bin/php /var/www/html/console core:archive" www-data
+        sleep 3600
+      done
+      EOF'
+    networks:
+    - internal
+
+networks:
+  traefik:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.4.0/24

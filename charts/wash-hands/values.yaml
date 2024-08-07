@@ -1,0 +1,75 @@
+# This instructs AKS to assign an _internal_ loadbalancer IP to the service
+# nginx-ingress:
+#   controller:
+#     service:
+# #      loadBalancerIP: set-this-if-you-have-a-static-lb-ip
+
+goldilocks:
+  enabled: true
+  installVPA: true
+  uninstallVPA: false
+  reinstallVPA: false
+  vpaVersion: e16a0adef6c7d79a23d57f9bbbef26fc9da59378
+
+  controller:
+    flags:
+      on-by-default: true
+
+  ingress:
+    enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    hosts:
+      - host: this.isnt.working.yet
+        paths:
+        - /
+
+# Disabled by default, until you insert your own credentials below
+# Additionally, you _must_ install the CRDs by hand, before enabling below. 
+# To install the CRDs, run:
+#     kubectl apply --validate=false \
+#       -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.13/deploy/manifests/00-crds.yaml
+
+certmanager:
+  enabled: false
+  letsencrypt:
+    email: your@email.here
+    dns01:
+      cloudflare:
+        enabled: true
+        email: your@email.here
+        api_token: your-api-token-here
+
+nginx-ingress:
+  enabled: true
+  controller:
+    service:
+      # This is set to ClusterIP by default, since the target cluster may not support loadbalancers
+      # (and broken loadbalancers breaks our CI)
+      type: ClusterIP
+
+# Kured handles reboots of AKS nodes one-at-a-time, PROVIDED you have enough capacity to shift all
+# workloads off one node, so that it can reboot. Disabled by default because it's not useful in all scenarios
+kured:
+  enabled: false
+
+grafana:
+  enabled: true
+  ingress:
+    enabled: true
+
+loki:
+  enabled: true
+  promtail:
+    enabled: true
+
+# Disabled by default because of CRD issues with helm
+prometheus-operator:
+  enabled: false
+
+kube-eagle:
+  enabled: true
+  # Enable this is prometheus-operator is enabled
+  serviceMonitor:
+    create: false
+

@@ -1,0 +1,100 @@
+- name: ensure /var/data/config exists
+  file:
+    path: /var/data/config
+    state: directory
+
+- when: combined_config[recipe].stacked_recipes is defined
+  block:
+
+  - name: run the recipe-generation task once for master stack
+    include_tasks: recipe.yml 
+    vars: 
+      requested_recipe: "{{ recipe }}"
+
+  - name: "{{ recipe }} --> deploy master stack"
+    docker_stack:
+      state: present
+      name: "{{ recipe }}"
+      compose: "/var/data/config/{{ recipe }}/{{ recipe }}.yml"
+    register: _result        
+    until: _result.failed == false
+    retries: 20 # retry X times  
+    delay: 30     # pause for X sec b/w each call
+
+  - name: run the recipe-generation task once-per-stacked recipe
+    include_tasks: recipe.yml 
+    vars: 
+      requested_recipe: "{{ current_recipe }}"
+    with_items: "{{ combined_config[recipe].stacked_recipes }}"
+    loop_control:
+      loop_var: current_recipe
+
+  - name: Run any defined pre-deploy actions
+    shell: "{{ combined_config[recipe].run_pre_deploy }}"
+    when: combined_config[recipe].run_pre_deploy is defined
+
+  - name: "{{ recipe }} --> deploy multi-recipe stack"
+    docker_stack:
+      state: present
+      name: "{{ recipe }}"
+      compose: "/var/data/config/{{ item }}/{{ item }}.yml"
+      with_registry_auth: true
+    with_items: "{{ combined_config[recipe].stacked_recipes }}"
+    register: _result        
+    until: _result.failed == false
+    retries: 20 # retry X times  
+    delay: 30     # pause for X sec b/w each call
+
+- when: combined_config[recipe].stacked_recipes is not defined
+  block:
+
+  - name: run the recipe-generation task once (this is a single-recipe stack)
+    include_tasks: recipe.yml 
+    vars: 
+      requested_recipe: "{{ recipe }}"
+
+  - name: Run any defined pre-deploy actions
+    shell: "{{ combined_config[recipe].run_pre_deploy }}"
+    when: combined_config[recipe].run_pre_deploy is defined
+    
+  - name: "{{ recipe }} --> deploy single-recipe stack"
+    docker_stack:
+      state: present
+      name: "{{ recipe }}"
+      with_registry_auth: true
+      compose: "/var/data/config/{{ recipe }}/{{ recipe }}.yml"
+    register: _result        
+    until: _result.failed == false
+    retries: 20 # retry X times  
+    delay: 30     # pause for X sec b/w each call
+
+
+- name: Run any defined post-deploy actions
+  shell: "{{ combined_config[recipe].run_post_deploy }}"
+  when: combined_config[recipe].run_post_deploy is defined
+
+- name: Wait for 10 seconds for swarm to finish receiving the stack
+  wait_for:
+    timeout: 10
+
+- name: Test whether the stack is running as desired
+  shell: "docker stack ps {{ recipe }} --filter \"desired-state=running\"  --format \"{{'{{'}} .CurrentState {{'}}'}}\" | grep -v Running" 
+  register: _result        
+  until: _result.rc == 1
+  failed_when: _result.rc != 1
+  retries: 10 # retry X times  
+  delay: 30   # pause for X sec b/w each call  
+
+- name: Remove stack again (if we're doing a CI validation)
+  docker_stack:
+    state: absent
+    name: "{{ recipe }}"
+    with_registry_auth: true
+    compose: "/var/data/config/{{ recipe }}/{{ recipe }}.yml"
+  register: _result        
+  until: _result.failed == false
+  retries: 20 # retry X times  
+  delay: 30     # pause for X sec b/w each call
+  when: 
+  - ci_validation is defined
+  - recipe is not match("traefik")

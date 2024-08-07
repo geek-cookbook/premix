@@ -1,0 +1,41 @@
+version: '3.2'
+
+services:
+  podgrab:
+    image: akhilrex/podgrab
+    env_file: /var/data/config/podgrab/podgrab.env
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/podgrab:/config
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:podgrab.example.com
+        - traefik.port=8080
+        # uncomment if you want to protect podgrab with traefik-forward-auth using traefikv1 
+        # - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        # - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        # - traefik.frontend.auth.forward.trustForwardHeader=true
+
+        # traefikv2
+        - "traefik.http.routers.podgrab.rule=Host(`podgrab.example.com`)"
+        - "traefik.http.routers.podgrab.entrypoints=https"
+        - "traefik.http.services.podgrab.loadbalancer.server.port=8080"
+        - "traefik.http.routers.podgrab.middlewares=forward-auth" # this line enforces traefik-forward-auth  
+    networks:
+      - traefik_public
+
+networks:
+  traefik_public:
+    external: true

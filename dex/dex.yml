@@ -1,0 +1,30 @@
+version: '3'
+
+services:
+  dex:
+    image: mdbraber/dex 
+    volumes:
+      - /etc/localtime:/etc/localtime:ro    
+      - /var/data/config/dex/config.yml:/config.yml
+      - /var/data/dex:/db
+    networks:
+      - traefik_public
+    command: ['serve','/config.yml']
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:dex.example.com
+        - traefik.port=5556
+        - traefik.docker.network=traefik_public
+
+        # and for traefikv2:
+        - "traefik.http.routers.dex.rule=Host(`dex.example.com`)"
+        - "traefik.http.routers.dex.entrypoints=https"
+        - "traefik.http.routers.dex.tls.domains[0].main=example.com"
+        - "traefik.http.routers.dex.tls.domains[0].sans=*.example.com"
+        - "traefik.http.routers.dex.tls=true"
+        - "traefik.http.routers.dex.tls.certresolver=main"
+        - "traefik.http.routers.dex.service=dex"
+        - "traefik.http.services.dex.loadbalancer.server.port=5556"
+networks:
+  traefik_public:
+    external: true

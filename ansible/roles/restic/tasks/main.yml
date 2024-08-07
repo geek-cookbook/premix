@@ -1,0 +1,28 @@
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: restic
+
+- name: insert backup env vars
+  lineinfile:
+    path: "/var/data/config/{{ recipe }}/{{ recipe }}-backup.env"
+    regexp: '^{{ item.key }}='
+    line: '{{ item.key }}={{ item.value}}'
+  with_items: "{{ combined_config[recipe].env_backup | dict2items }}"  
+  when: 
+  - combined_config[recipe].env_backup is defined
+
+- name: insert prune env vars
+  lineinfile:
+    path: "/var/data/config/{{ recipe }}/{{ recipe }}-backup.env"
+    regexp: '^{{ item.key }}='
+    line: '{{ item.key }}={{ item.value}}'
+  with_items: "{{ combined_config[recipe].env_backup | dict2items }}"  
+  when: 
+  - combined_config[recipe].env_backup is defined
+
+- name: ensure /var/data/restic/restic.exclude exists (even if it's empty)
+  file:
+    path: /var/data/restic/restic.exclude
+    state: touch

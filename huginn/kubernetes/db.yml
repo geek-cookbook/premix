@@ -1,0 +1,63 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  namespace: huginn
+  name: db
+  labels:
+    app: db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - image: postgres:11
+          name: db
+# only uncomment these to get the container to run so that we can transfer files into the PV
+#          command: [ "/bin/sleep" ]
+#          args: [ "1h" ]
+# populate these after doing some measurements
+#            requests:
+#              memory: "10Mi"
+#              cpu: "0.01"
+#            limits:
+#              memory: "50Mi"
+#              cpu: "0.02"
+          volumeMounts:
+            - name: huginn-db
+              mountPath: /var/lib/postgresql
+          env:
+          # We use a custom PGDATA path to avoid a problem whereby GKE disks are created with a
+          # lost+found directory, which prevents PostgresQL from creating a new database, since it
+          # assumes a database already exists - https://github.com/docker-library/postgres/pull/72
+          - name: PGDATA
+            value: "/var/lib/postgresql/huggin-data"
+          - name: POSTGRES_USER
+            value: "huginn"
+          - name: POSTGRES_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: huginn-credentials
+                key: postgres_password.secret
+      volumes:
+        - name: huginn-db
+          persistentVolumeClaim:
+            claimName: huginn-db
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: db
+  namespace: huginn
+spec:
+  selector:
+    app: db
+  ports:
+  - protocol: TCP
+    port: 5432
+  clusterIP: None

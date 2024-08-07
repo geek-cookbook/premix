@@ -1,0 +1,56 @@
+version: "3.3"
+
+services:
+  app:
+    image: dessalines/lemmy:0.17.3
+    env_file: /var/data/config/lemmy/lemmy.env
+    volumes:
+      - /var/data/config/lemmy/config.hjson:/config/config.hjson
+    networks:
+      - internal
+    # environment:
+    #   -       
+
+  ui:
+    image: dessalines/lemmy-ui:0.17.3
+    env_file: /var/data/config/lemmy/lemmy.env
+    deploy:
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv2
+        - "traefik.http.routers.lemmy.rule=Host(`lemmy.example.com`)"
+        - "traefik.http.routers.lemmy.entrypoints=https"
+        - "traefik.http.services.lemmy.loadbalancer.server.port=1234"
+    networks:
+      - internal
+      - traefik_public
+
+  pictrs:
+    image: asonix/pictrs:0.3.1
+    env_file: /var/data/config/lemmy/lemmy.env
+    # we can set options to pictrs like this, here we set max. image size and forced format for conversion
+    # entrypoint: /sbin/tini -- /usr/local/bin/pict-rs -p /mnt -m 4 --image-format webp
+    volumes:
+      - /var/data/lemmy/pictrs:/mnt
+    networks:
+      - internal
+
+  postgres:
+    image: postgres:15-alpine
+    env_file: /var/data/config/lemmy/lemmy.env
+    volumes:
+      - /var/data/runtime/lemmy/postgresql:/var/lib/postgresql/data
+    networks:
+      - internal
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.24.0/24

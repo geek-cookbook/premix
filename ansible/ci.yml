@@ -1,0 +1,27 @@
+# If we have any proxmox hosts, then use them to create the necessary VMs
+- hosts: proxmox_servers:proxmox_vms_ci
+  gather_facts: no
+  become: yes
+
+  vars:
+    terraform_dir: ~/.terraform/funky-penguins-are-funky-ci-april # avoid destroying april when we destroy the other VMs
+
+  tasks: 
+
+  # Setup Proxmox Terraform plugin locally
+  - { import_role: { name: proxmox }, tags: [ proxmox, infrastructure ], become: no }
+
+
+# If we have a github runner (used for CI, humans can ignore) then deploy it here
+- hosts: github_actions_runners
+  gather_facts: yes
+  become: yes
+
+  tasks:
+
+  # Setup actions runner
+  - { import_role: { name: github-actions-runner }, tags: [ github-actions-runner ] }     
+
+  # Setup helm
+  - { import_role: { name: helm }, tags: [ helm ] }     
+

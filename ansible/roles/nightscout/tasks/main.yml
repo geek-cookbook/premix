@@ -1,0 +1,13 @@
+- name: Prepare database-dump directory
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+  - /var/data/runtime/nightscout/database
+  - /var/data/nightscout/database-dump
+
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: nightscout

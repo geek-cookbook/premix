@@ -1,0 +1,13 @@
+apiVersion: v2
+name: funkycore
+description: A collection of helpers for all Cookbook Charts
+type: library
+version: 1.0.0
+appVersion: 1.0.0
+title: Funky Core
+home: https://geek-cookbook.funkypenguin.co.nz/
+
+maintainers:
+    - name: hexf
+      email: git@hexf.me
+      url: https://hexf.me

@@ -1,0 +1,73 @@
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Import any custom vars defined for this chart"
+  include_vars: "{{lookup('first_found', params)}}"
+  vars:
+    params:
+      files:
+        - '{{ helm_chart_name }}.yaml'
+        - default.yaml
+      paths:
+        - 'vars'
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> ensure helm is installed"
+  snap:
+    name: helm
+    classic: yes
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> add repo"
+  shell: /snap/bin/helm repo add {{ helm_chart_repo }} {{ helm_chart_repo_url }} --force-update
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Update helm repo contents"
+  shell: /snap/bin/helm repo update
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> create temporary directory for values"
+  tempfile:
+    state: directory
+    suffix: temp
+  register: valuesdir
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> create temporary directory for manifests"
+  tempfile:
+    state: directory
+    suffix: temp
+  register: manifestsdir  
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Render values.yaml from template and provided variables 👩‍🎨"
+  template:
+    src: "{{ helm_chart_name }}-{{ helm_chart_context }}-values.yaml.j2"
+    dest: "{{ valuesdir.path }}/values.yaml"
+  when: 
+  - (role_path + '/templates/' + helm_chart_name + '-' + helm_chart_context +'-values.yaml.j2') is file
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> If no chart-specific values.yaml provided, create empty values.yaml instead"
+  copy:
+    content: "# Intentionally left blank because no {{ helm_chart_name }}-{{ helm_chart_context }}-values.yaml.j2 file found" 
+    dest: "{{ valuesdir.path }}/values.yaml"
+    force: no
+    group: sys
+    owner: root
+    mode: 0555
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Create namespace (if necessary)"
+  shell: kubectl create namespace {{ helm_chart_namespace | default(helm_chart_name) }} --dry-run=client -o yaml | kubectl apply -f -
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Export helm-generate kube manifests for later optional debugging"
+  command: "/snap/bin/helm template -f values.yaml {{ helm_chart_repo }}/{{ helm_chart_name }} --output-dir={{ manifestsdir.path }} --version {{ helm_chart_version }}"
+  args:
+    chdir: "{{ valuesdir.path }}"
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Show user where generated manifests are, for debug"
+  debug:
+    msg: Generated YAML can be found at {{ manifestsdir.path }}
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Perform helm upgrade/install"
+  command: "/snap/bin/helm upgrade --timeout 360s --debug --wait --install -f values.yaml --namespace {{ helm_chart_namespace | default(helm_chart_name) }} {{ helm_chart_release }} {{ helm_chart_repo }}/{{ helm_chart_name }} {{ helm_extra_args }} --version {{ helm_chart_version }}"
+  args:
+    chdir: "{{ valuesdir.path }}"
+
+- name: "{{ helm_chart_repo }}/{{ helm_chart_name }} --> Remove temporary directories 🗑"
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+  - "{{ manifestsdir.path }}"
+  - "{{ valuesdir.path }}"

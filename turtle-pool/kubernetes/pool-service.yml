@@ -1,0 +1,16 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: pool-ui
+  namespace: trtl
+spec:
+  selector:
+    app: pool
+  ports:
+  - name: pool-http
+    port: 80 
+    protocol: TCP
+  - name: pool-api
+    port: 8117
+    protocol: TCP

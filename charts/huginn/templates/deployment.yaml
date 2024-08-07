@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: 
+  name: {{ .Values.names.deployment }}
+  labels:
+{{ include "huginn.labels" . | indent 4 }}    
+spec:
+  replicas: {{ .Values.app.replicas | int }}
+  selector:
+    matchLabels:
+      app: {{ .Values.app.labels.app }}
+  template:
+    metadata:
+      labels:
+{{ include "huginn.labels" . | indent 8 }}        
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.app.image.image }}"
+        imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.app.service.internalPort | int }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.app.probes.liveness.httpPath }}
+            port: {{ .Values.app.service.internalPort | int }}
+          initialDelaySeconds: 180
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.app.probes.readiness.httpPath }}
+            port: {{ .Values.app.service.internalPort | int }}
+        resources:
+{{ toYaml .Values.app.resources | indent 10 }}
+        env:
+          {{ if .Values.smtp.enable }}
+          - name: SMTP_DOMAIN
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_domain
+          - name: SMTP_USER_NAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_username
+          - name: SMTP_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_password
+          - name: SMTP_SERVER
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_server
+          - name: SMTP_PORT
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_port
+          - name: SMTP_AUTHENTICATION
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_authmode
+          - name: SMTP_ENABLE_STARTTLS_AUTO
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: smtp_starttls
+          {{ end }}
+          - name: INVITATION_CODE
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: invitiation_code
+
+          - name: POSTGRES_PORT_5432_TCP_ADDR
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: db_addr
+          - name: POSTGRES_PORT_5432_TCP_PORT
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: db_port
+          - name: DATABASE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: db_user
+          - name: DATABASE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: db_pass
+
+          {{ if .Values.twitter.enable }}
+          - name: TWITTER_OAUTH_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: twitter_key
+          - name: TWITTER_OAUTH_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.names.secret }}
+                key: twitter_secret
+          {{ end }}
+          {{ if not .Values.db.seed }}
+          - name: DO_NOT_SEED
+          {{ end }}

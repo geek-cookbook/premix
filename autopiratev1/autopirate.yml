@@ -1,0 +1,457 @@
+version: '3'
+
+services:
+  heimdall:
+    image: lscr.io/linuxserver/heimdall:latest
+    env_file: /var/data/config/autopirate/heimdall.env
+    volumes:
+      - /etc/localtime:/etc/localtime:ro      
+      - /var/data/heimdall:/config
+    networks:
+    - internal
+  
+  heimdall_proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file : /var/data/config/autopirate/heimdall.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:heimdall.funkypenguin.co.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /etc/localtime:/etc/localtime:ro  
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://heimdall:80
+      -redirect-url=https://heimdall.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -email-domain=funkypenguin.co.nz
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  oscarr:
+    image: morpheus65535/oscarr:latest
+    env_file: /var/data/config/autopirate/oscarr.env
+    volumes:
+      - /var/data/autopirate/oscarr:/oscarr/data
+    networks:
+      - internal
+
+  oscarr_proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/autopirate/oscarr.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:oscarr.funkypenguin.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /etc/localtime:/etc/localtime:ro  
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://oscarr:5656
+      -redirect-url=https://oscarr.funkypenguin.co.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    env_file: /var/data/config/autopirate/bazarr.env
+    volumes:
+      - /share/appdata/autopirate/bazarr:/config
+      - /var/data/media/tv:/tv
+      - /var/data/media/movies:/movies
+    networks:
+      - internal
+        
+  bazarr_proxy:
+    image: funkypenguin/oauth2_proxy:latest
+    env_file: /var/data/config/autopirate/bazarr.env
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:bazarr.funkypenguin.nz
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /etc/localtime:/etc/localtime:ro  
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://bazarr:6767
+      -redirect-url=https://bazarr.funkypenguin.nz
+      -http-address=http://0.0.0.0:4180
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+      
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/sabnzbd:/config
+    networks:
+      - internal
+
+  sabnzbd_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/sabnzbd.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:sabnzbd.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://sabnzbd:8080
+      -redirect-url=https://sabnzbd.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  nzbget:
+    image: lscr.io/linuxserver/nzbget:latest
+    env_file: /var/data/config/autopirate/nzbget.env
+    volumes:
+      - /var/data/autopirate/nzbget:/config
+      - /var/data/media/:/media
+    networks:
+      - internal
+    ports:
+      - 5075:5075
+
+  nzbget_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/nzbget.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:nzbget.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://nzbget:6789
+      -redirect-url=https://nzbget.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  rtorrent:
+    image: lscr.io/linuxserver/rutorrent
+    env_file: /var/data/config/autopirate/rtorrent.env
+    ports:
+      - 36898:36898
+      - 3475:80
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/rtorrent:/config
+    networks:
+      - internal
+
+  rtorrent_proxy:
+    image: skippy/oauth2_proxy
+    env_file: /var/data/config/autopirate/rtorrent.env
+    dns_search: myswarm.example.com
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:rtorrent.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://rtorrent:80
+      -redirect-url=https://rtorrent.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  lazylibrarian:
+    image: lscr.io/linuxserver/lazylibrarian:latest
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/lazylibrarian:/config
+    networks:
+      - internal
+
+  lazylibrarian_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/lazylibrarian.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:lazylibrarian.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://lazylibrarian:5299
+      -redirect-url=https://lazylibrarian.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+  
+  mylar:
+    image: lscr.io/linuxserver/mylar:latest
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/mylar:/config
+    networks:
+      - internal
+
+  mylar_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/mylar.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:mylar.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://mylar:8090
+      -redirect-url=https://mylar.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  ombi:
+    image: lscr.io/linuxserver/ombi:latest
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/ombi:/config
+    networks:
+      - internal
+
+  ombi_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/ombi.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:ombi.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://ombi:3579
+      -redirect-url=https://ombi.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  headphones:
+    image: lscr.io/linuxserver/headphones:latest
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/headphones:/config
+    networks:
+      - internal
+
+  headphones_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/headphones.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:headphones.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://headphones:8181
+      -redirect-url=https://headphones.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    env_file: /var/data/config/autopirate/radarr.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/radarr:/config
+    networks:
+      - internal
+
+  radarr_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/radarr.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:radarr.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://radarr:7878
+      -redirect-url=https://radarr.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    env_file: /var/data/config/autopirate/sonarr.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/sonarr:/config
+    networks:
+      - internal
+
+  sonarr_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/sonarr.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:sonarr.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://sonarr:8989
+      -redirect-url=https://sonarr.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+      
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:latest
+    env_file: /var/data/config/autopirate/lidarr.env
+    volumes:
+     - /etc/localtime:/etc/localtime:ro
+     - /var/data/media:/media
+     - /var/data/autopirate/lidarr:/config          
+    networks:
+     - internal
+
+  lidarr_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file : /var/data/config/autopirate/lidarr.env
+    dns_search: myswarm.example.com
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:lidarr.example.com		
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://lidarr:8686
+      -redirect-url=https://lidarr.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+  nzbhydra:
+    image: lscr.io/linuxserver/hydra:latest
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/autopirate/nzbhydra:/config
+    networks:
+      - internal
+
+  nzbhydra_proxy:
+    image: a5huynh/oauth2_proxy
+    env_file: /var/data/config/autopirate/nzbhydra.env
+    dns_search: myswarm.example.com  
+    networks:
+      - internal
+      - traefik_public
+    deploy:
+      labels:
+        - traefik.frontend.rule=Host:nzbhydra.example.com
+        - traefik.docker.network=traefik_public
+        - traefik.port=4180
+    volumes:
+      - /var/data/config/autopirate/authenticated-emails.txt:/authenticated-emails.txt
+    command: |
+      -cookie-secure=false
+      -upstream=http://nzbhydra:5075
+      -redirect-url=https://nzbhydra.example.com
+      -http-address=http://0.0.0.0:4180
+      -email-domain=example.com
+      -provider=github
+      -authenticated-emails-file=/authenticated-emails.txt
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.11.0/24

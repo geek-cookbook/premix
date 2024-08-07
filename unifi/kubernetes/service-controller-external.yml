@@ -1,0 +1,19 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: controller-external
+  namespace: unifi
+spec:
+  selector:
+    app: controller
+  type: NodePort
+  ports:
+  - name: device-adoption
+    port: 8080
+    protocol: TCP
+    nodePort : 30808
+  - name: http-portal-redirect
+    port: 8880
+    protocol: TCP
+    nodePort : 30888

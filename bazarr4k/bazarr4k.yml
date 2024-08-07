@@ -1,0 +1,39 @@
+version: "3.2"
+
+services:
+  bazarr4k:
+    image: lscr.io/linuxserver/bazarr:latest
+    env_file: /var/data/config/bazarr4k/bazarr4k.env
+    volumes:
+      - /var/data/media/:/media
+      - /var/data/bazarr4k:/config
+    deploy:
+      replicas: 1
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:bazarr4k.example.com
+        - traefik.port=6767    
+        # uncomment if you want to protect bazarr4k with traefik-forward-auth using traefikv1 
+        # - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        # - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        # - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.bazarr4k.rule=Host(`bazarr4k.example.com`)"
+        - "traefik.http.routers.bazarr4k.entrypoints=https"
+        - "traefik.http.services.bazarr4k.loadbalancer.server.port=6767"
+        - "traefik.http.routers.bazarr4k.middlewares=forward-auth" # this line enforces traefik-forward-auth  
+
+    networks:
+      - traefik_public
+      - autopiratev2_public
+
+networks:
+  traefik_public:
+    external: true
+  autopiratev2_public:
+    external: true

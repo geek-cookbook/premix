@@ -1,0 +1,28 @@
+{{- if and .Values.ingress.enabled ( eq .Values.ingress.type "kube" ) -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ .Values.ingress.name }}
+  labels:
+{{ include "autopirate.labels" . | indent 4 }}
+  annotations:
+    {{- range $key, $value := .Values.ingress.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  rules:
+  {{- range $key,$app := .Values.apps }}
+     - host: {{ $app.ingress.host }}
+       http:
+        paths:
+          - path: {{ $app.ingress.path }}
+            backend:
+              serviceName: {{ printf "%s-%s-%s" $.Release.Name $app.name $.Chart.Name | trunc 63 | trimSuffix "-" }}
+              servicePort: {{ $app.port }}
+  {{- end }}
+   
+  {{- if .Values.ingress.tls }}
+  tls:
+{{ toYaml .Values.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}

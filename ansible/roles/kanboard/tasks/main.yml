@@ -1,0 +1,15 @@
+# Necessary because Kanboard requires extra, non-default subdirectories to be mounted
+- name: "{{ recipe }} --> ensure necessary directories exist"
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: true
+  loop:
+    - /var/data/{{ recipe }}/plugins
+    - /var/data/{{ recipe }}/data
+
+- name: Deploy docker stack
+  import_role:
+    name: docker-stack
+  vars: 
+    recipe: kanboard

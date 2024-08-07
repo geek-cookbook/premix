@@ -1,0 +1,43 @@
+version: '3'
+
+services:
+  app:
+    image: ghcr.io/linuxserver/calibre-web
+    env_file: /var/data/config/calibre-web/calibre-web.env
+    volumes:
+      - /var/data/calibre-web:/config
+      # Set this next volume to wherever you store your Calibre library. From the container's perspective, this has to be /books/
+      - /var/data/media/Archive/Ebooks:/books
+    deploy:
+      replicas: 1      
+      labels:
+        # traefik
+        - traefik.enable=true
+        - traefik.docker.network=traefik_public
+
+        # traefikv1
+        - traefik.frontend.rule=Host:calibre-web.example.com
+        - traefik.port=8083    
+        # uncomment if you want to protect calibre-web with traefik-forward-auth using traefikv1 
+        # - traefik.frontend.auth.forward.address=http://traefik-forward-auth:4181
+        # - traefik.frontend.auth.forward.authResponseHeaders=X-Forwarded-User
+        # - traefik.frontend.auth.forward.trustForwardHeader=true        
+
+        # traefikv2
+        - "traefik.http.routers.calibre-web.rule=Host(`calibre-web.example.com`)"
+        - "traefik.http.routers.calibre-web.entrypoints=https"
+        - "traefik.http.services.calibre-web.loadbalancer.server.port=8083"
+        - "traefik.http.routers.calibre-web.middlewares=forward-auth" # this line enforces traefik-forward-auth  
+
+    networks:
+      - traefik_public
+      
+
+networks:
+  traefik_public:
+    external: true
+  internal:
+    driver: overlay
+    ipam:
+      config:
+        - subnet: 172.16.17.0/24
