@@ -1,6 +1,6 @@
-# 👋🏻 Welcome, Sponsor! ❤️
+# 👋🏻 Welcome, fellow Geek! ❤️
 
-- [👋🏻 Welcome, Sponsor! ❤️](#-welcome-sponsor-️)
+- [👋🏻 Welcome, fellow Geek! ❤️](#-welcome-fellow-geek-️)
 - [🙋‍♂️ What is this?](#️-what-is-this)
 - [How do I use this?](#how-do-i-use-this)
   - [Docker Swarm + Ansible (automatically) 🐳 + 🦾](#docker-swarm--ansible-automatically---)
@@ -15,7 +15,7 @@
 
 This is the "premix" for [Funky Penguin's Geek Cookbook](https://geek-cookbook.funkypenguin.co.nz), and is intended to "fast-track" deployment of the Docker Swarm / Kubernetes recipes, in an opinionated fashion.
 
-The premix was originally sponsors-only, but was opened up (*duplicated-in-a-public-repo, really*), to foster community involvement.
+The premix was originally sponsors-only, but was opened up (*[duplicated-in-a-public-repo](https://trufflesecurity.com/blog/anyone-can-access-deleted-and-private-repo-data-github), really*), to foster community involvement.
 
 The repository includes:
 * Standard docker-compose files for each recipe in the cookbook
