@@ -24,6 +24,7 @@
 #### If we have any swarm hosts
 # Init the Docker Swarm only on the first manager
 - hosts: swarm_nodes
+  remote_user: "{{ admin_ssh_user }}"
   gather_facts: yes
   become: yes
   vars:
