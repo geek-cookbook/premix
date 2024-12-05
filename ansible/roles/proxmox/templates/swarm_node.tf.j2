@@ -2,6 +2,7 @@ resource "proxmox_vm_qemu" "{{ inventory_hostname_short }}" {
     name = "{{ inventory_hostname_short }}"
     target_node = "{{ proxmox_node }}"
     clone = "template-geek-cookbook-{{ proxmox_node }}"
+    full_clone = true
     os_type = "cloud-init"
     ipconfig0 = "ip={{ ansible_host }}/24,gw={{ proxmox_vlan_gateway }}"  
     nameserver = "1.1.1.1"  
@@ -9,11 +10,18 @@ resource "proxmox_vm_qemu" "{{ inventory_hostname_short }}" {
     cores = {{ proxmox_vm_cores }}
     ciuser = "{{ admin_ssh_user }}"
 
+    scsihw = "virtio-scsi-single"
+
     sshkeys = <<EOF
 {{ admin_ssh_key }}
 EOF
+    vga {
+        type = "std"
+    }
+
     network {
-{% if proxmox_vm_vlan_tag is defined %}        
+        id = 0
+{% if proxmox_vm_vlan_tag is defined %}
         tag = {{ proxmox_vm_vlan_tag }}
 {% endif %}
         model = "virtio"
@@ -23,12 +31,19 @@ EOF
     disk {
         storage = "{{ proxmox_storage }}"
         size = "{{ proxmox_vm_disk0_size }}"
-        type = "scsi"
+        type = "disk"
+        slot = "scsi0"
     }    
     disk {
         storage = "{{ proxmox_storage }}"
         size = "{{ proxmox_vm_disk1_size }}"
-        type = "scsi"
-    }          
+        type = "disk"
+        slot = "scsi1"
+    }
+    disk {
+        type = "cloudinit"
+        storage = "{{ proxmox_storage }}"
+        slot = "ide2"
+    }
 }
 

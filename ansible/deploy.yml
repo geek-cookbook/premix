@@ -24,6 +24,7 @@
 #### If we have any swarm hosts
 # Init the Docker Swarm only on the first manager
 - hosts: swarm_nodes
+  remote_user: "{{ admin_ssh_user }}"
   gather_facts: yes
   become: yes
   vars:
@@ -247,6 +248,7 @@
 
 # If we have any k3s masters
 - hosts: k3s_masters
+  remote_user: "{{ admin_ssh_user }}"
   gather_facts: yes
   become: yes
   vars:
@@ -255,11 +257,12 @@
   tasks:
 
   # Setup K3s master
-  - { import_role: { name: k3s-master }, tags: [ k3s-master ] }   
+  - { import_role: { name: k3s-master }, tags: [ k3s-master ] }
 
 
 # If we have any k3s masters/workers, deploy them here
 - hosts: k3s_masters:k3s_workers
+  remote_user: "{{ admin_ssh_user }}"
   gather_facts: yes
   become: yes
   vars:
@@ -271,10 +274,10 @@
   tasks:
 
   # Setup K3s worker
-  - { import_role: { name: k3s-worker }, tags: [ k3s-worker ] }     
+  - { import_role: { name: k3s-worker }, tags: [ k3s-worker ] }
 
   # # Setup ceph
-  # - { import_role: { name: ceph }, tags: [ ceph ], run_once: true }   
+  # - { import_role: { name: ceph }, tags: [ ceph ], run_once: true }
 
 # Create flux manifests using localhost
 - hosts: localhost

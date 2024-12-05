@@ -117,9 +117,10 @@
       args:
         chdir: "{{ terraform_dir }}"
                   
-- name: Don't exit this play until the machines are reachable (they might still be booting up)
-  wait_for_connection: 
-    delay: 60
-    timeout: 300
-  vars:
-    ansible_pipelining: no
+    - name: Don't exit this play until the machines are reachable (they might still be booting up)
+      remote_user: "{{ admin_ssh_user }}"
+      wait_for_connection:
+        delay: 60
+        timeout: 300
+      vars:
+        ansible_pipelining: no
