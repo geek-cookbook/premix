@@ -19,7 +19,7 @@
     restart: yes
     restart_policy: unless-stopped
     env: 
-      KEEPALIVED_INTERFACE: "{{ ansible_default_ipv4.address|default(ansible_all_ipv4_addresses[0]) }}"
+      KEEPALIVED_INTERFACE: "eth0"
       KEEPALIVED_UNICAST_PEERS: "#PYTHON2BASH:[ '{{ \"', '\".join(keepalived_unicast_peers) }}' ]"
-      KEEPALIVED_VIRTUAL_IPS: "{{ keepalived_virtual_ips }} "
+      KEEPALIVED_VIRTUAL_IPS: "{{ keepalived_virtual_ips }}"
       KEEPALIVED_PRIORITY: "{{ keepalived_priority | quote }}"
