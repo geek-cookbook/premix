@@ -23,7 +23,7 @@
 
     - name: "[create template] Download latest ubuntu cloud-init image"
       get_url:
-        url: https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img
+        url: https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img
         dest: /tmp/
 
     - name: "[create template] Create new VM (with explicit VLAN)"
@@ -35,7 +35,7 @@
       when: proxmox_vm_vlan_tag is not defined
 
     - name: "[create template] Import cloud-init image into disk"
-      command: qm importdisk {{ template_vm_id | quote}} /tmp/noble-server-cloudimg-amd64.img {{ proxmox_storage }}
+      command: qm importdisk {{ template_vm_id | quote}} /tmp/focal-server-cloudimg-amd64.img {{ proxmox_storage }}
 
     - name: "[create template] Attach disk to template VM"
       command: qm set {{ template_vm_id | quote}} --scsihw virtio-scsi-pci --scsi0 {{ proxmox_storage }}:vm-{{ template_vm_id | quote}}-disk-0   
